@@ -1,11 +1,12 @@
-"""Shared Django settings.
+"""Shared Django settings — every value is environment-driven via `config.settings.env`.
 
-NOTE: T012 expands this file — it owns the final `INSTALLED_APPS` (DRF, simplejwt,
-`rest_framework_api_key`, the six local apps), the `REST_FRAMEWORK` block, the
-PostgreSQL `DATABASES` configuration, logging, middleware and auth wiring. What lives
-here today is the minimal, import-clean skeleton needed for `manage.py check` to pass.
+Persistence is PostgreSQL (Constitution Principle VI). A SQLite fallback is kept for the
+case where `POSTGRES_DB` is unset, so the suite and `manage.py check` run on a bare clone
+without a database server; the Compose stack, the Kubernetes manifests and CI all set
+`POSTGRES_DB` and therefore always exercise PostgreSQL.
 """
 
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
@@ -35,18 +36,29 @@ DJANGO_APPS: list[str] = [
     "django.contrib.staticfiles",
 ]
 
-# T012 adds the third-party apps (rest_framework, rest_framework_simplejwt,
-# rest_framework_api_key, corsheaders, drf_spectacular) and the six local apps
-# (apps.core, apps.companies, apps.documents, apps.signers, apps.integrations,
-# apps.automation) here.
-THIRD_PARTY_APPS: list[str] = []
-LOCAL_APPS: list[str] = []
+THIRD_PARTY_APPS: list[str] = [
+    "rest_framework",
+    "rest_framework_simplejwt",
+    "rest_framework_api_key",
+    "corsheaders",
+    "drf_spectacular",
+]
+
+LOCAL_APPS: list[str] = [
+    "apps.core",
+    "apps.companies",
+    "apps.documents",
+    "apps.signers",
+    "apps.integrations",
+    "apps.automation",
+]
 
 INSTALLED_APPS: list[str] = [*DJANGO_APPS, *THIRD_PARTY_APPS, *LOCAL_APPS]
 
-# T012/T015 register the structured-logging middleware here.
 MIDDLEWARE: list[str] = [
     "django.middleware.security.SecurityMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
+    "apps.core.middleware.RequestTimingLogger",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -78,8 +90,6 @@ ASGI_APPLICATION: str = "config.asgi.application"
 # --------------------------------------------------------------------------------------
 # Database
 # --------------------------------------------------------------------------------------
-# Stub: PostgreSQL when POSTGRES_DB is provided (docker compose / k8s), SQLite otherwise so
-# the project stays runnable without a database server. T012 finalises this.
 _POSTGRES_DB: str = env_str("POSTGRES_DB", "")
 
 if _POSTGRES_DB:
@@ -113,6 +123,44 @@ AUTH_PASSWORD_VALIDATORS: list[dict[str, Any]] = [
 ]
 
 # --------------------------------------------------------------------------------------
+# Django REST Framework
+# --------------------------------------------------------------------------------------
+REST_FRAMEWORK: dict[str, Any] = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
+    "DEFAULT_PAGINATION_CLASS": "apps.core.pagination.DefaultPageNumberPagination",
+    "PAGE_SIZE": 20,
+    "EXCEPTION_HANDLER": "apps.core.exceptions.api_exception_handler",
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+SIMPLE_JWT: dict[str, Any] = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=env_int("JWT_ACCESS_MINUTES", 60)),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=env_int("JWT_REFRESH_DAYS", 7)),
+    "AUTH_HEADER_TYPES": ("Bearer",),
+}
+
+SPECTACULAR_SETTINGS: dict[str, Any] = {
+    "TITLE": "Document & Signature Management System API",
+    "DESCRIPTION": "Documents, signers, ZapSign submission, AI analysis and reports.",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SCHEMA_PATH_PREFIX": "/api/",
+}
+
+# --------------------------------------------------------------------------------------
+# CORS (the SPA is served from a different origin in development)
+# --------------------------------------------------------------------------------------
+CORS_ALLOWED_ORIGINS: list[str] = env_list(
+    "DJANGO_CORS_ALLOWED_ORIGINS",
+    ["http://localhost:4200", "http://127.0.0.1:4200"],
+)
+
+# --------------------------------------------------------------------------------------
 # Internationalisation
 # --------------------------------------------------------------------------------------
 LANGUAGE_CODE: str = "en-us"
@@ -127,3 +175,46 @@ STATIC_URL: str = "static/"
 STATIC_ROOT: Path = BASE_DIR / "staticfiles"
 
 DEFAULT_AUTO_FIELD: str = "django.db.models.BigAutoField"
+
+# --------------------------------------------------------------------------------------
+# Alerts (bonus — User Story 5)
+# --------------------------------------------------------------------------------------
+#: A document pending signature for longer than this is surfaced as a stalled alert.
+ALERT_STALLED_DAYS: int = env_int("ALERT_STALLED_DAYS", 5)
+
+# --------------------------------------------------------------------------------------
+# Structured logging (Constitution Principle V, FR-029)
+# --------------------------------------------------------------------------------------
+LOG_LEVEL: str = env_str("DJANGO_LOG_LEVEL", "INFO")
+
+LOGGING: dict[str, Any] = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "filters": {
+        "correlation_id": {"()": "apps.core.logging.CorrelationIdFilter"},
+    },
+    "formatters": {
+        "json": {
+            "()": "apps.core.logging.JsonFormatter",
+            "format": "%(timestamp)s %(level)s %(logger)s %(message)s",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "json",
+            "filters": ["correlation_id"],
+        },
+    },
+    "root": {"handlers": ["console"], "level": LOG_LEVEL},
+    "loggers": {
+        "django.request": {"handlers": ["console"], "level": "ERROR", "propagate": False},
+        "api.request": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False},
+        "api.health": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False},
+        "integrations.gateway": {
+            "handlers": ["console"],
+            "level": LOG_LEVEL,
+            "propagate": False,
+        },
+    },
+}

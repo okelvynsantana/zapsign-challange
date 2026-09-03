@@ -65,6 +65,49 @@ In n8n the body lands under `body`, so expressions read `{{ $json.body.has_risk_
 response, so the Slack node reaches back with `$('Webhook').item.json.body.<field>` and reads
 `$json.latest_analysis.summary` / `$json.latest_analysis.missing_topics` from the report.
 
+## Running a local n8n (optional overlay)
+
+`deploy/docker-compose.n8n.yml` brings up n8n plus a stand-in for Slack on the same network
+as the backend, so the whole chain is exercisable with no external accounts:
+
+```bash
+export N8N_ZAPSIGN_API_KEY=$(cd backend && python manage.py create_api_key "n8n" | awk '/^key:/{print $2}')
+docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.n8n.yml up -d
+# n8n -> http://localhost:5678
+```
+
+Then point the backend at it, in `deploy/.env`:
+
+```dotenv
+N8N_WEBHOOK_URL=http://n8n:5678/webhook/zapsign-document-events
+```
+
+`n8n:5678` (not `localhost`) because the value is resolved from **inside** the backend
+container. The same reasoning makes `ZAPSIGN_BASE_APP_URL=http://backend:8000` for n8n.
+
+The `slack-echo` service simply logs whatever the last node posts
+(`docker logs zapsign-slack-echo-1`); set `N8N_SLACK_WEBHOOK_URL` to a real Slack incoming
+webhook to use the real thing.
+
+### Importing from the CLI
+
+`Import from File` in the UI works with this export as-is. The **CLI** importer additionally
+requires a top-level `id`, which the export deliberately omits (the UI assigns one):
+
+```bash
+python3 -c "import json,pathlib; w=json.load(open('deploy/n8n/document-events.workflow.json')); \
+  w['id']='zapsign-document-events'; pathlib.Path('/tmp/wf.json').write_text(json.dumps(w))"
+docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.n8n.yml exec n8n \
+  n8n import:workflow --input=/tmp/wf.json
+docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.n8n.yml exec n8n \
+  n8n update:workflow --id=zapsign-document-events --active=true
+docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.n8n.yml restart n8n
+```
+
+The webhook is only registered after that restart — a `404` on
+`/webhook/zapsign-document-events` immediately after activating just means n8n has not
+finished booting.
+
 ## Import
 
 1. n8n → **Workflows** → **Import from File**.
@@ -79,7 +122,7 @@ armed for one request.
 
 | Variable | Example | Used by |
 |---|---|---|
-| `ZAPSIGN_BASE_APP_URL` | `http://host.docker.internal:8000` | report + Slack nodes, prefixed to `report_url` |
+| `ZAPSIGN_BASE_APP_URL` | `http://backend:8000` (compose) | report + Slack nodes, prefixed to `report_url` |
 | `ZAPSIGN_API_KEY` | the plaintext key printed by `create_api_key` | `Authorization: Api-Key <key>` header |
 | `SLACK_WEBHOOK_URL` | `https://hooks.slack.com/services/T.../B.../xxx` | Slack notify node |
 
@@ -90,7 +133,9 @@ access; some hardened images flip it). If you would rather not use `$env`, repla
 with literal values or an n8n *variable*.
 
 Note that `ZAPSIGN_BASE_APP_URL` must be reachable **from the n8n container**, which is not
-necessarily `localhost`.
+necessarily `localhost`. It is prefixed to `report_url`, which the event carries as a
+**relative** path precisely so the receiver decides the host — never emit an absolute URL
+there or the two get concatenated into an invalid one.
 
 ## Pointing the system at n8n
 
@@ -167,7 +212,7 @@ transaction commits. A slow, erroring, or entirely unreachable n8n never fails
 
 ## Screenshot
 
-`screenshot.png` in this directory is a **placeholder** — a blank light-grey canvas, committed only
+`screenshot.png` in this directory is still a **placeholder** — a blank light-grey canvas, committed only
 so the reference resolves. Replace it with a real capture of a successful execution: import and
 activate the workflow, point `N8N_WEBHOOK_URL` at it, create or re-analyse a document that yields a
 risk insight, then screenshot the n8n **Executions** view showing the green run through

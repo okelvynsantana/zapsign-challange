@@ -7,6 +7,10 @@ automation create documents, re-run analysis and pull reports.
 
 Angular SPA · Django + DRF API · PostgreSQL · Docker Compose · Kubernetes (Kustomize) · GitHub Actions
 
+> ZapSign challenge. Built with spec-driven development: the specification, plan, data
+> model and contracts in `specs/001-document-signature-management/` were written first and
+> drove the implementation — see [Project documentation](#project-documentation).
+
 ---
 
 ## Quick start

@@ -1,0 +1,136 @@
+# Django/gunicorn API, listening on 8000.
+#
+# MIGRATIONS ARE NOT RUN HERE. Running `manage.py migrate` from an initContainer
+# would race across replicas on every rollout; instead migrations (and the seed
+# user) are applied once by the one-shot Job in `migrate-job.yaml`, which shares
+# this image and environment. The initContainer below only *waits* for the
+# database to accept connections so the pod does not crash-loop before postgres
+# is up.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  labels:
+    app.kubernetes.io/name: backend
+    app.kubernetes.io/component: api
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: backend
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: backend
+        app.kubernetes.io/component: api
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: wait-for-db
+          image: ghcr.io/OWNER/zapsign-backend:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - python
+            - -c
+            - |
+              import os, socket, sys, time
+              host = os.environ["POSTGRES_HOST"]
+              port = int(os.environ.get("POSTGRES_PORT", "5432"))
+              deadline = time.time() + 120
+              while time.time() < deadline:
+                  try:
+                      with socket.create_connection((host, port), timeout=3):
+                          sys.exit(0)
+                  except OSError:
+                      time.sleep(2)
+              sys.exit("database %s:%s not reachable" % (host, port))
+          envFrom:
+            - configMapRef:
+                name: zapsign-config
+            - secretRef:
+                name: zapsign-secrets
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+      containers:
+        - name: backend
+          image: ghcr.io/OWNER/zapsign-backend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: zapsign-config
+            - secretRef:
+                name: zapsign-secrets
+          # `/api/health/` is unauthenticated and returns 200 when the DB is
+          # reachable, 503 otherwise. Provider (ZapSign / OpenAI) failures are
+          # best-effort and MUST NOT fail the probe, so a third-party outage can
+          # never cycle these pods.
+          startupProbe:
+            httpGet:
+              path: /api/health/
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 30 # up to ~150s for a slow first start
+          readinessProbe:
+            httpGet:
+              path: /api/health/
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2 # drop out of the Service quickly
+          livenessProbe:
+            httpGet:
+              path: /api/health/
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6 # ~2min of failures before a restart
+          volumeMounts:
+            # readOnlyRootFilesystem: true — gunicorn/Django still need a
+            # writable scratch dir (uploads, tempfiles).
+            - name: tmp
+              mountPath: /tmp
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      terminationGracePeriodSeconds: 30

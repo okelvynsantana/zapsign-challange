@@ -1,0 +1,66 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: zapsign
+
+resources:
+  - ../../base
+  - backend-pdb.yaml
+  - backend-hpa.yaml
+
+# The HPA owns the live replica count for `backend`; this is only the value the
+# Deployment is created with before the HPA takes over.
+replicas:
+  - name: backend
+    count: 3
+  - name: frontend
+    count: 2
+
+# Immutable, released tags only — never `latest` in production.
+images:
+  - name: ghcr.io/OWNER/zapsign-backend
+    newTag: v1.0.0
+  - name: ghcr.io/OWNER/zapsign-frontend
+    newTag: v1.0.0
+
+# The migrate Job's pod template is immutable, so the ConfigMap name must stay
+# stable; roll the backend explicitly (`kubectl rollout restart deploy/backend`)
+# after a config change.
+generatorOptions:
+  disableNameSuffixHash: true
+
+configMapGenerator:
+  - name: zapsign-config
+    behavior: merge
+    literals:
+      - DJANGO_DEBUG=false
+      - DJANGO_ALLOWED_HOSTS=zapsign.example.com,backend,backend.zapsign.svc.cluster.local
+      - DJANGO_CORS_ALLOWED_ORIGINS=https://zapsign.example.com
+      - PUBLIC_BASE_URL=https://zapsign.example.com
+      - ZAPSIGN_USE_FAKE=false
+      - AI_USE_FAKE=false
+
+patches:
+  - path: patch-resources.yaml
+
+  # Serve the real hostname (the base uses zapsign.local for dev clusters) over
+  # TLS. Must stay in sync with DJANGO_ALLOWED_HOSTS / PUBLIC_BASE_URL above.
+  - target:
+      kind: Ingress
+      name: zapsign
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: zapsign.example.com
+      - op: add
+        path: /spec/tls
+        value:
+          - hosts:
+              - zapsign.example.com
+            secretName: zapsign-tls
+      - op: add
+        path: /metadata/annotations/cert-manager.io~1cluster-issuer
+        value: letsencrypt-prod
+      - op: add
+        path: /metadata/annotations/nginx.ingress.kubernetes.io~1ssl-redirect
+        value: "true"

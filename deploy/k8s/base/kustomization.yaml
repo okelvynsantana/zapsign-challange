@@ -1,0 +1,26 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: zapsign
+
+commonLabels:
+  app.kubernetes.io/part-of: zapsign
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secret.example.yaml
+  - postgres-statefulset.yaml
+  - migrate-job.yaml
+  - backend-deployment.yaml
+  - backend-service.yaml
+  - frontend-deployment.yaml
+  - frontend-service.yaml
+  - ingress.yaml
+
+# Placeholder coordinates — every overlay overrides newName/newTag.
+images:
+  - name: ghcr.io/OWNER/zapsign-backend
+    newTag: latest
+  - name: ghcr.io/OWNER/zapsign-frontend
+    newTag: latest

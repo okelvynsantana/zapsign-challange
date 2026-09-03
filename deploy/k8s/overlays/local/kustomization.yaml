@@ -1,0 +1,47 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: zapsign
+
+resources:
+  - ../../base
+
+# Single replica of everything — a laptop cluster (kind/minikube) has no reason to
+# run two of each, and rolling updates are not interesting locally.
+replicas:
+  - name: backend
+    count: 1
+  - name: frontend
+    count: 1
+
+# Locally-built images loaded straight into the cluster node (see README.md).
+# `IfNotPresent` in the base means the node-local image is used and nothing is
+# pulled from a registry.
+images:
+  - name: ghcr.io/OWNER/zapsign-backend
+    newName: zapsign-backend
+    newTag: local
+  - name: ghcr.io/OWNER/zapsign-frontend
+    newName: zapsign-frontend
+    newTag: local
+
+# Keep the ConfigMap name stable: the migrate Job's pod template is immutable, so a
+# hash-suffixed name would make re-applying the Job fail.
+generatorOptions:
+  disableNameSuffixHash: true
+
+configMapGenerator:
+  - name: zapsign-config
+    behavior: merge
+    literals:
+      - DJANGO_DEBUG=true
+      - DJANGO_ALLOWED_HOSTS=*
+      - DJANGO_CORS_ALLOWED_ORIGINS=http://zapsign.local,http://localhost:4200
+      # No third-party calls locally: fake gateways keep the stack usable with no
+      # ZapSign sandbox token and no OpenAI key.
+      - ZAPSIGN_USE_FAKE=true
+      - AI_USE_FAKE=true
+      - PUBLIC_BASE_URL=http://zapsign.local
+
+patches:
+  - path: patch-resources.yaml

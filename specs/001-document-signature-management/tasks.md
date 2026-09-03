@@ -34,17 +34,17 @@ Monorepo per [plan.md](./plan.md): `backend/` (Django project `config/` + apps u
 
 **Purpose**: Project skeleton, tooling, container and CI scaffolding.
 
-- [ ] T001 Create monorepo directory structure (`backend/`, `frontend/`, `deploy/`, `.github/workflows/`, `README.md` stub) per [plan.md](./plan.md) "Source Code" tree
+- [X] T001 Create monorepo directory structure (`backend/`, `frontend/`, `deploy/`, `.github/workflows/`, `README.md` stub) per [plan.md](./plan.md) "Source Code" tree
 - [ ] T002 Initialize Django project in `backend/`: `backend/pyproject.toml` (Django 5.x LTS, DRF, `djangorestframework-simplejwt`, `djangorestframework-api-key`, `openai`, `pypdf`, `httpx`, `psycopg[binary]`, `python-json-logger`), `backend/manage.py`, `backend/config/{__init__,urls,wsgi,asgi}.py`, `backend/config/settings/{base,local,prod}.py`
 - [ ] T003 [P] Configure backend tooling in `backend/pyproject.toml`: `ruff` (lint+format), `mypy` + `django-stubs` + `djangorestframework-stubs` (pragmatic-strict per [research.md](./research.md) §9), `pytest`/`pytest-django`/`pytest-cov`/`factory-boy`/`respx` with `--cov-fail-under=80` on primary-flow packages
 - [ ] T004 [P] Initialize Angular 19 app in `frontend/` (standalone components, routing) with Jest via `jest-preset-angular`: `frontend/package.json`, `frontend/jest.config.ts`, `frontend/src/test/setup.ts`, ESLint config
-- [ ] T005 [P] Create `backend/Dockerfile` (multi-stage, non-root, `gunicorn` runtime, k8s-ready) per [research.md](./research.md) §12
+- [X] T005 [P] Create `backend/Dockerfile` (multi-stage, non-root, `gunicorn` runtime, k8s-ready) per [research.md](./research.md) §12
 - [ ] T006 [P] Create `frontend/Dockerfile` (multi-stage build → nginx static runtime) + `frontend/nginx.conf`
-- [ ] T007 [P] Create `deploy/.env.example` documenting every variable (`POSTGRES_*`, `DJANGO_SECRET_KEY`, `DJANGO_SETTINGS_MODULE`, `ZAPSIGN_BASE_URL`, `ZAPSIGN_TIMEOUT_SECONDS`, `OPENAI_API_KEY`, `AI_MODEL`, `AI_TIMEOUT_SECONDS`, `AI_MAX_INPUT_CHARS`, `AI_REGEX_FALLBACK_ENABLED`, `PDF_FETCH_TIMEOUT_SECONDS`, `PDF_MAX_BYTES`, `ALERT_STALLED_DAYS`, `N8N_WEBHOOK_URL`, `N8N_WEBHOOK_SECRET`, `WEBHOOK_TIMEOUT_SECONDS`, `PUBLIC_BASE_URL`)
-- [ ] T008 [P] Create `deploy/docker-compose.yml` with services `db` (postgres:16), `migrate` (one-shot), `backend` (:8000), `frontend` (:4200), healthchecks and `.env` wiring
-- [ ] T009 [P] Create `.github/workflows/backend.yml`: setup Python 3.12 → install → `ruff check` + `ruff format --check` → `mypy` → `pytest --cov --cov-fail-under=80` against a `postgres:16` service; no third-party network
-- [ ] T010 [P] Create `.github/workflows/frontend.yml`: setup Node 20 → `npm ci` → `eslint` → `jest --coverage` → `npm run build`
-- [ ] T011 [P] Create `.github/workflows/images.yml`: Buildx build of backend + frontend images with layer cache; push to GHCR only on default branch / tags
+- [X] T007 [P] Create `deploy/.env.example` documenting every variable (`POSTGRES_*`, `DJANGO_SECRET_KEY`, `DJANGO_SETTINGS_MODULE`, `ZAPSIGN_BASE_URL`, `ZAPSIGN_TIMEOUT_SECONDS`, `OPENAI_API_KEY`, `AI_MODEL`, `AI_TIMEOUT_SECONDS`, `AI_MAX_INPUT_CHARS`, `AI_REGEX_FALLBACK_ENABLED`, `PDF_FETCH_TIMEOUT_SECONDS`, `PDF_MAX_BYTES`, `ALERT_STALLED_DAYS`, `N8N_WEBHOOK_URL`, `N8N_WEBHOOK_SECRET`, `WEBHOOK_TIMEOUT_SECONDS`, `PUBLIC_BASE_URL`)
+- [X] T008 [P] Create `deploy/docker-compose.yml` with services `db` (postgres:16), `migrate` (one-shot), `backend` (:8000), `frontend` (:4200), healthchecks and `.env` wiring
+- [X] T009 [P] Create `.github/workflows/backend.yml`: setup Python 3.12 → install → `ruff check` + `ruff format --check` → `mypy` → `pytest --cov --cov-fail-under=80` against a `postgres:16` service; no third-party network
+- [X] T010 [P] Create `.github/workflows/frontend.yml`: setup Node 20 → `npm ci` → `eslint` → `jest --coverage` → `npm run build`
+- [X] T011 [P] Create `.github/workflows/images.yml`: Buildx build of backend + frontend images with layer cache; push to GHCR only on default branch / tags
 
 **Checkpoint**: `docker compose -f deploy/docker-compose.yml config` validates; empty test suites run.
 
@@ -266,7 +266,7 @@ at an unreachable host and confirm `POST /api/documents/` and `.../analyze/` sti
 - [ ] T100 [P] [US6] `backend/apps/automation/webhook.py` — `WebhookNotifier` ABC + `HttpWebhookNotifier` (`httpx`, timeout, HMAC, `@log_gateway_call`, swallow-all) + `NullWebhookNotifier` + `FakeWebhookNotifier`; event builders producing the contract payload
 - [ ] T101 [US6] `backend/apps/documents/services.py` (extend) — after the surrounding transaction commits, call `WebhookNotifier.notify(...)` on status change (in `create`/`resync`) and on new `DocumentAnalysis` (in `analyze`), guarded so failure cannot roll back
 - [ ] T102 [P] [US6] Notifier selection in `backend/apps/integrations/__init__.py` — real vs null vs fake based on `N8N_WEBHOOK_URL`/settings
-- [ ] T103 [P] [US6] `deploy/n8n/document-events.workflow.json` (exported example: Webhook → IF risk → HTTP Request report → notify) + `deploy/n8n/README.md` describing import + the screenshot placeholder `deploy/n8n/screenshot.png`
+- [X] T103 [P] [US6] `deploy/n8n/document-events.workflow.json` (exported example: Webhook → IF risk → HTTP Request report → notify) + `deploy/n8n/README.md` describing import + the screenshot placeholder `deploy/n8n/screenshot.png`
 
 **Checkpoint**: All six user stories functional.
 
@@ -276,8 +276,8 @@ at an unreachable host and confirm `POST /api/documents/` and `.../analyze/` sti
 
 **Purpose**: Deployment assets, docs, and quality gates spanning all stories.
 
-- [ ] T104 [P] Kubernetes base in `deploy/k8s/base/`: `namespace.yaml`, `backend-deployment.yaml` + `backend-service.yaml` (liveness/readiness probes → `/api/health/`, resource requests/limits, non-root), `frontend-deployment.yaml` + `frontend-service.yaml`, `postgres-statefulset.yaml`, `configmap.yaml`, `secret.example.yaml`, `ingress.yaml`, `kustomization.yaml`
-- [ ] T105 [P] Kustomize overlays `deploy/k8s/overlays/local/` and `deploy/k8s/overlays/prod/` (image tags, replica counts, env differences)
+- [X] T104 [P] Kubernetes base in `deploy/k8s/base/`: `namespace.yaml`, `backend-deployment.yaml` + `backend-service.yaml` (liveness/readiness probes → `/api/health/`, resource requests/limits, non-root), `frontend-deployment.yaml` + `frontend-service.yaml`, `postgres-statefulset.yaml`, `configmap.yaml`, `secret.example.yaml`, `ingress.yaml`, `kustomization.yaml`
+- [X] T105 [P] Kustomize overlays `deploy/k8s/overlays/local/` and `deploy/k8s/overlays/prod/` (image tags, replica counts, env differences)
 - [ ] T106 [P] `README.md`: setup (`docker compose up`), running tests, endpoint documentation (link [contracts/rest-api.md](./contracts/rest-api.md) / [openapi.yaml](./contracts/openapi.yaml)), the AI pipeline explanation, and the SOLID / DDD-light / KISS / UUID and **synchronous-AI trade-off + evolution path** rationale (Constitution Principle III requirement)
 - [ ] T107 [P] Add `drf-spectacular` (or equivalent) to serve `/api/schema/` and verify it matches `contracts/openapi.yaml`; wire in settings + `config/urls.py`
 - [ ] T108 [P] `backend/apps/core/management/commands/seed_demo.py` — optional demo Company + sample document for quickstart

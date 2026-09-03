@@ -1,0 +1,17 @@
+/* TypeScript configuration used by Jest (ts-jest via jest-preset-angular). */
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./out-tsc/spec",
+    "module": "CommonJS",
+    "target": "ES2022",
+    "esModuleInterop": true,
+    "types": ["jest", "node"]
+  },
+  "include": [
+    "src/**/*.spec.ts",
+    "src/**/*.d.ts",
+    "src/test/**/*.ts",
+    "jest.config.ts"
+  ]
+}

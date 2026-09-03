@@ -14,7 +14,7 @@ class ZapSignGateway(ABC):
     def create_document(self, request: ZapSignCreateRequest) -> ZapSignCreateResult: ...
 
     @abstractmethod
-    def get_document(self, doc_token: str) -> ZapSignDocumentStatus: ...
+    def get_document(self, *, api_token: str, doc_token: str) -> ZapSignDocumentStatus: ...
 ```
 
 All methods are **synchronous** and MUST complete within the configured connect/read timeouts
@@ -77,7 +77,7 @@ class ZapSignError(Exception):
 - `http_status` (4xx/5xx) / `invalid_response` (unparseable body) → `failed`, retryable.
 - The gateway MUST redact `api_token` from every log line and exception message.
 
-## Mapping to our model (done in `DocumentService`, not the gateway)
+## Mapping to our model (done in `apps.documents.services`, not the gateway)
 
 | ZapSign field | Our field |
 |---|---|
@@ -103,7 +103,7 @@ Against `HttpZapSignGateway` with `respx`-mocked HTTP:
 - [ ] No log line or exception string contains the `api_token` value.
 - [ ] `get_document` returns `ZapSignDocumentStatus` and maps signer statuses.
 
-`FakeZapSignGateway` (used by `DocumentService` tests) supports: queued success result, queued
+`FakeZapSignGateway` (used by the document service tests) supports: queued success result, queued
 `ZapSignError`, and records the last `ZapSignCreateRequest` it received.
 
 ## Configuration (`apps/integrations/config.py`, typed, env-driven)

@@ -15,18 +15,23 @@ Related: [`plan.md`](./plan.md) · [`data-model.md`](./data-model.md) ·
 | Need | Version | Notes |
 |---|---|---|
 | Docker + Compose v2 | recent | the only hard requirement for the happy path |
-| ZapSign sandbox account | — | provides the `api_token` stored on the Company row |
-| OpenAI API key | — | for real analysis; without it, use the regex fallback or the fake provider |
+| ZapSign sandbox account | — | provides the `api_token` stored on the Company row. Not needed with `ZAPSIGN_USE_FAKE=true`. |
+| OpenAI API key | — | for real analysis. Blank falls back to the fake provider automatically. |
 | (dev only) Python 3.12, Node 20 | | to run suites outside containers |
 
 Copy and fill environment:
 
 ```bash
 cp deploy/.env.example deploy/.env
-# set at minimum: POSTGRES_* , DJANGO_SECRET_KEY , OPENAI_API_KEY (optional), ZAPSIGN_BASE_URL
+# REQUIRED: DJANGO_SECRET_KEY, SEED_PASSWORD
+# Optional: OPENAI_API_KEY / a ZapSign token — or set ZAPSIGN_USE_FAKE=true and
+#           AI_USE_FAKE=true to run the whole stack offline with no accounts at all.
 ```
 
-Every variable in `deploy/.env.example` is documented inline (Constitution Principle VII).
+Every variable in `deploy/.env.example` is documented on the line above it (Constitution
+Principle VII). **Keep it that way**: Compose folds a trailing `# comment` into an *empty*
+value, which silently turns blank-means-off settings on. `apps/core/tests/test_env_example.py`
+guards the format.
 
 ---
 
@@ -58,11 +63,15 @@ Internal user (SPA / manual calls):
 ```bash
 ACCESS=$(curl -s localhost:8000/api/auth/token/ \
   -H 'Content-Type: application/json' \
-  -d '{"username":"manager","password":"manager"}' | jq -r .access)
+  -d "{\"username\":\"$SEED_USERNAME\",\"password\":\"$SEED_PASSWORD\"}" | jq -r .access)
 ```
 
-Automation key (created by seed or `manage.py create_api_key "n8n"`; the plaintext is printed
-once): export it as `APIKEY`.
+Automation key — the plaintext is printed once, at creation:
+
+```bash
+docker compose -f deploy/docker-compose.yml exec backend \
+  python manage.py create_api_key "n8n"        # export the printed key as APIKEY
+```
 
 ---
 
@@ -188,23 +197,32 @@ delivered; pointing the URL at an unreachable host leaves `POST /api/documents/`
 
 ## 4. Run the test suites
 
-Backend (inside the container or a local venv):
+Backend — from `backend/`, in a virtualenv with the dev extras
+(`pip install -e ".[dev]"`):
 
 ```bash
-docker compose -f deploy/docker-compose.yml run --rm backend \
-  bash -lc "ruff check . && ruff format --check . && mypy . && pytest --cov --cov-fail-under=80"
+ruff check . && ruff format --check .
+mypy .
+pytest --cov            # gate: >= 80% on the primary-flow packages
 ```
+
+> The runtime image deliberately ships **no** dev tooling — no pytest, ruff or mypy — so
+> the production container stays minimal. The suites therefore run on the host (or on the
+> CI runner, which is what `.github/workflows/backend.yml` does against a `postgres:16`
+> service container). Running them "inside the app image" is not supported by design.
 
 - TDD components (ZapSign gateway, PDF extractor, analysis pipeline/provider, status rules) have
   tests written before implementation; third-party APIs are mocked — the suite makes **no external
   network calls** (Constitution Principle II).
 - Coverage gate: ≥ 80 % on the primary-flow packages (SC-009).
 
-Frontend:
+Frontend — from `frontend/` after `npm ci` (the runtime image is nginx serving a static
+bundle, so it likewise carries no test tooling):
 
 ```bash
-docker compose -f deploy/docker-compose.yml run --rm frontend \
-  bash -lc "npm run lint && npm test -- --coverage"
+npm run lint
+npm run typecheck       # app + spec type-check
+npm run test:cov        # gate: >= 80%
 ```
 
 ---

@@ -47,7 +47,7 @@ class WebhookNotifier(ABC):
 | `has_risk_insight` | boolean | latest analysis is `succeeded` and any `insights[*].risk` is true |
 | `report_url` | string | relative path to the per-document report |
 
-## Trigger points (in `DocumentService`, after the DB commit)
+## Trigger points (in `apps.documents.services`, after the DB commit)
 
 | Change | Emitted event |
 |---|---|
@@ -79,7 +79,7 @@ a continuously running n8n instance is not required (spec Assumptions).
       no exception propagates.
 - [ ] With `N8N_WEBHOOK_SECRET` set, the `X-Signature` header is a correct HMAC-SHA256 of the body.
 - [ ] `NullWebhookNotifier` is selected when `N8N_WEBHOOK_URL` is empty; no HTTP attempted.
-- [ ] `DocumentService.create` with a `FakeWebhookNotifier`: a status change emits exactly one
+- [ ] `create_document` with a `FakeWebhookNotifier`: a status change emits exactly one
       `document.status_changed`; a risk-bearing analysis emits one `document.analyzed` with
       `has_risk_insight=true`.
 - [ ] A `FakeWebhookNotifier` that raises inside `notify` still does not fail
@@ -94,4 +94,8 @@ a continuously running n8n instance is not required (spec Assumptions).
 | signing secret | `N8N_WEBHOOK_SECRET` | — (unset ⇒ no `X-Signature`) |
 | timeout (s) | `WEBHOOK_TIMEOUT_SECONDS` | `5` |
 | emit on every analysis | `WEBHOOK_ON_EVERY_ANALYSIS` | `false` |
-| public base URL for `report_url` consumers | `PUBLIC_BASE_URL` | `http://localhost:8000` |
+
+`report_url` is emitted as a **relative** path (see the payload table above). The receiver
+prefixes its own base URL — in the shipped n8n workflow that is `ZAPSIGN_BASE_APP_URL`,
+which must resolve from inside the n8n container. The system therefore has no
+`PUBLIC_BASE_URL` setting: it cannot know which host its consumers can reach it on.

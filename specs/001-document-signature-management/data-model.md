@@ -9,9 +9,10 @@ Derived from `spec.md` (Key Entities, Functional Requirements) and `PRD.md` §8.
 - All timestamps are timezone-aware UTC. `created_at` set on insert; `last_updated_at` /
   `updated_at` set on every save.
 - Persistence is **PostgreSQL**; all schema changes ship as Django migrations (PRD RNF06).
-- Each entity is mirrored by a **frozen, fully typed dataclass** in the owning app's `domain/`
-  package (`entities.py`) that carries the pure business rules; the Django model is the persistence
-  adapter only.
+- Each entity **is** a Django model, and the model carries its own business rules — methods,
+  properties, `clean()` and `TextChoices` (see plan.md "Architecture Stance"). There is no parallel
+  dataclass mirror of the ORM: frozen dataclasses are reserved for things that cross a provider
+  boundary or have no table (`ZapSignCreateRequest`, `ProviderAnalysis`, `AnalysisResult`, `Alert`).
 - Fields returned by ZapSign (`open_id`, `token`, `external_id`) are **their** identifiers and have
   no relationship to our primary keys.
 
@@ -26,7 +27,7 @@ the table is retained so multiple organizations/credentials are possible later (
 |---|---|---|---|
 | `id` | UUID | PK, default uuid4, not editable | |
 | `name` | string(255) | required, non-empty (trimmed) | display name |
-| `api_token` | string(255) | required | ZapSign account API token. **Write-only**; never serialized back in full; never exposed on any `automation` endpoint (FR-002). Stored via a `SecretString` value object; encrypted at rest if `FIELD_ENCRYPTION_KEY` is set, otherwise plain column with a documented warning. |
+| `api_token` | string(255) | required | ZapSign account API token. **Write-only**; never serialized back in full; never exposed on any `automation` endpoint (FR-002). Read back through the `SecretString` value object, which masks it in `str()`/`repr()` so it cannot leak into a log line or a traceback. **Stored as a plain column**: encryption at rest was not implemented and is recorded as a known limitation in the README. | |
 | `created_at` | datetime | auto, insert | |
 | `last_updated_at` | datetime | auto, every save | PRD §8 name |
 
@@ -41,9 +42,10 @@ the table is retained so multiple organizations/credentials are possible later (
   `409 Conflict` with an explanatory message (FR-004). The SPA surfaces this as a confirmation-style
   error.
 
-**Domain dataclass** (`companies/domain/entities.py`): `Company(id: UUID, name: str, api_token:
-SecretString, created_at: datetime, last_updated_at: datetime)` with `masked_token() -> str` and
-`with_updated_name(name: str) -> "Company"`.
+**Model behaviour** (`apps/companies/models.py`): `Company.masked_token -> str` and
+`Company.secret_token -> SecretString` (the credential cannot leak through an f-string or a
+traceback); `clean()` rejects a blank name and `save()` trims it. Query helpers live in
+`apps/companies/querysets.py` (`with_document_count()`, `deletable()`).
 
 ---
 
@@ -76,7 +78,7 @@ A file to be signed. Persisted locally **before** any external call (FR-008, Pri
   **append-only**; the "current" analysis is the one with the greatest `created_at` (FR-017,
   FR-018).
 
-**`ProviderStatus` enum & transitions** (`documents/domain/status.py`):
+**`ProviderStatus` enum & transitions** (`apps/documents/status.py`):
 
 ```
 pending_integration ──(ZapSign create OK)──▶ submitted
@@ -87,7 +89,8 @@ submitted ──(POST /documents/{id}/resync/ to refresh)──▶ submitted   (
 
 - Only `failed` and `submitted` accept a `resync` trigger; `pending_integration` while an attempt is
   in flight is not re-triggerable (guarded in the service).
-- Transition logic lives in the domain layer as pure typed functions; the model stores the string.
+- The vocabulary is a `TextChoices` enum and the guard (`can_resync`) is a pure typed function in
+  `apps/documents/status.py`; the model stores the string and exposes `Document.can_resync()`.
 
 **Signature `status`**: opaque string owned by ZapSign; the system stores and displays it and never
 computes signature outcomes itself.
@@ -96,14 +99,17 @@ computes signature outcomes itself.
 
 - `name` non-empty; `pdf_url` required and URL-valid (FR-005, FR-007).
 - On create via any surface, **at least one signer** must be provided (FR-007); enforced in
-  `DocumentService.create`, not the model, so the document+signers are written in one transaction.
+  `create_document` and the `DocumentSerializer`, not the model, so the document and its signers are
+  written in one transaction.
 - `company` must reference an existing `Company` (FR-003).
 - `open_id` / `token` / `status` are only written by the service from a ZapSign response or a
   `resync`, never by client input.
 
-**Domain dataclass** (`documents/domain/entities.py`): `Document(...)` fully typed, with
-`can_resync() -> bool`, `mark_submitted(result: ZapSignDocumentResult) -> "Document"`,
-`mark_provider_failed(reason: str) -> "Document"`.
+**Model behaviour** (`apps/documents/models.py`): `can_resync() -> bool`,
+`mark_submitted(result) -> None` and `mark_provider_failed(reason) -> None` (both mutate without
+saving, so the service controls the write), plus `latest_analysis` and `has_open_risk`. The status
+vocabulary and its transition guard are pure functions in `apps/documents/status.py`; query helpers
+are in `apps/documents/querysets.py`.
 
 ---
 
@@ -131,9 +137,8 @@ A person expected to sign a document.
   `400` with a field error. The same email on different documents is allowed.
 - `token` / `status` are written only by the service from ZapSign data.
 
-**Domain dataclass** (`signers/domain/entities.py`): `Signer(id: UUID, document_id: UUID, name: str,
-email: str, token: str | None, status: str | None, external_id: str | None)` with
-`normalized_email() -> str`.
+**Model behaviour** (`apps/signers/models.py`): `normalized_email -> str` (what the uniqueness rule
+compares); `save()` normalises name and email, and `clean()` validates them.
 
 ---
 
@@ -160,8 +165,9 @@ analysis run; earlier rows are never mutated or deleted except by document casca
 **`AnalysisState` transitions**: none. A row is created already `succeeded` or `failed` and is
 immutable. "Retry" = create a new row (FR-019). "Current" = `ORDER BY created_at DESC LIMIT 1`.
 
-**Derived helper**: `Document.latest_analysis` (property / annotated queryset) and
-`Document.has_open_risk` = latest analysis is `succeeded` and any `insights[*].risk` is true.
+**Derived helpers**: `Document.latest_analysis` (property, with `DocumentQuerySet.with_latest_analysis()`
+prefetching it for list views) and `Document.has_open_risk` = the latest analysis is `succeeded` and
+any `insights[*].risk` is true.
 
 **Validation rules**:
 
@@ -169,10 +175,12 @@ immutable. "Retry" = create a new row (FR-019). "Current" = `ORDER BY created_at
 - `state=failed` ⇒ `error_reason` non-empty; `summary`/`missing_topics`/`insights` may be empty.
 - `missing_topics` entries are non-empty strings; `insights` entries match the object shape above.
 
-**Domain dataclass** (`documents/domain/entities.py`): `AnalysisResult(summary: str, missing_topics:
-list[str], insights: list[Insight], source: AnalysisSource, model: str | None)` and
-`Insight(text: str, risk: bool)` — produced by the analysis pipeline, persisted into a
-`DocumentAnalysis`.
+**Pipeline result** (`apps/integrations/analysis/results.py`): frozen `AnalysisResult(state,
+summary, missing_topics, insights, source, model, error_reason)` and `Insight(text, risk)` — produced
+by the analysis pipeline and persisted into a `DocumentAnalysis` by the service. It lives in
+`integrations/` because it is a provider output, not a persistence concern.
+**Model behaviour** (`apps/documents/models.py`): `DocumentAnalysis.has_risk_insight` and
+`.risk_insights`, plus a `clean()` enforcing the state/summary/error_reason rules above.
 
 ---
 
@@ -228,7 +236,7 @@ Computed on request for the alerts dashboard (US5). Not a table.
 | Delete Document ⇒ delete its Analyses | FK `on_delete=CASCADE` | FR-017 (history is per-document) |
 | Delete Company with Documents ⇒ blocked | FK `on_delete=PROTECT` → `409` | FR-004 |
 | Document always has a Company | FK `null=False` | FR-003 |
-| Document created before any external call | single transaction in `DocumentService.create` | FR-008, Principle IV |
+| Document created before any external call | `create_document` writes the rows in one transaction before calling the gateway | FR-008, Principle IV |
 | Analyses never overwritten | insert-only; no update path in service or serializer | FR-017 |
 | ZapSign `api_token` never leaves the system | write-only serializer field; absent from all `automation` responses | FR-002 |
 | One email per signer per document | `UniqueConstraint(document, email)` | edge case |

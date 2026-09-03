@@ -84,18 +84,19 @@ class ProviderAnalysis:
 ## 3. `AnalysisPipeline` (application service in `apps/integrations/analysis/pipeline.py`)
 
 Orchestrates extraction → LLM → regex reinforcement → typed result. This is what
-`DocumentService.analyze` calls. It **does not** touch the database; it returns an `AnalysisResult`
+`apps.documents.services.analyze_document` calls. It **does not** touch the database; it returns an `AnalysisResult`
 that the caller persists as a `DocumentAnalysis` row.
 
 ```python
 class AnalysisPipeline:
     def __init__(self, extractor: PdfTextExtractor, provider: AnalysisProvider,
-                 clause_checker: ClauseChecker) -> None: ...
+                 clause_checker: ClauseChecker, *,
+                 regex_fallback_enabled: bool = True) -> None: ...
 
     def run(self, pdf_url: str) -> AnalysisResult: ...
 ```
 
-`AnalysisResult` (domain dataclass, `documents/domain/entities.py`):
+`AnalysisResult` (frozen dataclass, `apps/integrations/analysis/results.py`):
 
 ```python
 @dataclass(frozen=True)
@@ -141,9 +142,9 @@ Default clause set (config-overridable, `AI_EXPECTED_CLAUSES`): `objeto`, `prazo
 
 ## 4. How the service persists the result (`apps/documents/services.py`)
 
-`DocumentService.analyze(document_id)`:
+`analyze_document(document, *, pipeline, notifier=None)`:
 
-- Loads the `Document` (404 if gone).
+- Receives the `Document` (the view resolves it, 404 if gone).
 - `result = pipeline.run(document.pdf_url)`.
 - Inserts a new `DocumentAnalysis` from `result` (never updates an existing one — FR-017).
 - Returns the new row. Failures here never touch `Document.provider_status` (FR-020).
@@ -168,7 +169,7 @@ Pipeline (`AnalysisPipeline.run` with fakes):
 - [ ] Provider `timeout` + fallback disabled → `state="failed"`, `error_reason="provider_timeout"`.
 - [ ] Provider returns `insights` with a `risk=true` item → preserved in `AnalysisResult.insights`.
 
-Service (`DocumentService.analyze` with a fake pipeline + real DB):
+Service (`analyze_document` with a fake pipeline + real DB):
 
 - [ ] Creates exactly one new `DocumentAnalysis`; a pre-existing analysis row is untouched.
 - [ ] A `failed` pipeline result still creates a `DocumentAnalysis(state="failed")` and does not

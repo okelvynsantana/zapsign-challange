@@ -16,12 +16,18 @@ dashboard and an outbound webhook to an automation platform.
 
 Technical approach: a monorepo with a Django + Django REST Framework backend split into six
 domain-scoped apps (`companies`, `documents`, `signers`, `integrations`, `automation`, `core`),
-each with a thin DDD layering (pure typed domain rules → application services → DRF I/O). All
-external providers (ZapSign, the LLM, PDF extraction, the outbound webhook) sit behind typed
-gateway interfaces so domain code never touches an SDK or HTTP client. PostgreSQL with UUID PKs and
-migrations. Angular SPA. Everything containerised with multi-stage Dockerfiles, a one-command
-`docker compose` local stack, and Kustomize-based Kubernetes manifests. GitHub Actions runs lint,
-type-check, backend and frontend test suites (with coverage gates), and image builds.
+written **idiomatically for Django** — models are the domain layer (Active Record: business rules
+as model methods, properties and `clean()`; reusable query logic as custom `QuerySet`/`Manager`
+methods; enums as `TextChoices`), DRF serializers own validation and representation, and viewsets
+stay thin. Decoupling is applied where it buys something rather than uniformly: every external
+provider (ZapSign, the LLM, PDF extraction, the outbound webhook) sits behind a typed gateway
+interface with a fake, so no model, service or view ever imports an SDK or issues HTTP directly;
+and the few use cases that span several models *and* an external call (document create / resync /
+analyze) live in a thin `services.py` of plain typed functions that receive their gateways by
+injection. PostgreSQL with UUID PKs and migrations. Angular SPA. Everything containerised with
+multi-stage Dockerfiles, a one-command `docker compose` local stack, and Kustomize-based Kubernetes
+manifests. GitHub Actions runs lint, type-check, backend and frontend test suites (with coverage
+gates), and image builds.
 
 ## Technical Context
 
@@ -78,16 +84,48 @@ re-checked after Phase 1.*
 
 | Principle | Gate | Plan compliance |
 |-----------|------|-----------------|
-| I. Clean Architecture & Dependency Inversion | Domain/application/infra layers separated; no SDK/HTTP in domain or application code; every external provider behind an interface; six domain-scoped Django apps | Each app has `domain/` (pure, typed dataclasses + rules), `services.py` (use cases), and DRF `serializers.py`/`views.py`. `integrations/` holds `ZapSignGateway`, `AnalysisProvider`, `PdfTextExtractor`, `WebhookNotifier` as ABCs with concrete impls; domain/services depend on the ABCs. Apps: `companies`, `documents`, `signers`, `integrations`, `automation`, `core`. **PASS** |
+| I. Clean Architecture & Dependency Inversion | Domain/application/infra concerns separated; no SDK/HTTP in domain or application code; every external provider behind an interface; six domain-scoped Django apps | Concerns are separated by *role*, using Django's own seams rather than a parallel entity layer: business rules and invariants on the models (methods, properties, `clean()`, `TextChoices`), reusable query logic in `querysets.py`, multi-model-plus-external-call use cases in a thin `services.py`, HTTP/validation in DRF `serializers.py`/`views.py`, and third-party access confined to `integrations/`. `integrations/` holds `ZapSignGateway`, `AnalysisProvider`, `PdfTextExtractor`, `WebhookNotifier` as ABCs with real + fake impls; models, querysets, services and views depend only on the ABCs and never import `httpx`, `openai` or `pypdf`. Apps: `companies`, `documents`, `signers`, `integrations`, `automation`, `core`. See "Architecture Stance" below for the reading of this principle. **PASS (with a recorded interpretation)** |
 | II. Test-First for Critical Logic (NON-NEGOTIABLE) | TDD on ZapSign client, AI pipeline, status rules; external APIs mocked; CI never calls third parties; ≥80% coverage on primary routes; Pytest + Jest | `tasks.md` will order tests before impl for every integration/business-rule unit. `respx`/`responses` mock ZapSign & OpenAI; a fake `AnalysisProvider`/`ZapSignGateway` used in service tests. `pytest --cov` with `--cov-fail-under=80` scoped to primary flow packages in CI. Jest for frontend. **PASS** |
-| III. Simplicity First (KISS / YAGNI) | Simplest solution that meets the requirement; no async/queue/cache/extra layers unless required; conscious trade-offs documented in README | Synchronous AI call (no Celery/Redis). Single PDF library (`pypdf`). Kustomize (no Helm). No caching layer. DDD layering kept thin — no repository pattern over the ORM; domain rules extracted only where they carry real logic. README records the sync-AI trade-off and its evolution path. **PASS** |
-| IV. Resilient External Integrations | Local CRUD survives ZapSign/LLM failure; document persisted before external calls; explicit pending/failed state; bounded configurable timeouts; retryable | `DocumentService.create` writes the row (`provider_status=pending_integration`) before any outbound call. ZapSign failure → `provider_status=failed`, retry via `POST /api/documents/{id}/resync/`. LLM failure → `DocumentAnalysis(state=failed, error_reason=...)`, retry via `POST /api/documents/{id}/analyze/`. All outbound calls use `httpx` timeouts from settings. **PASS** |
+| III. Simplicity First (KISS / YAGNI) | Simplest solution that meets the requirement; no async/queue/cache/extra layers unless required; conscious trade-offs documented in README | Synchronous AI call (no Celery/Redis). Single PDF library (`pypdf`). Kustomize (no Helm). No caching layer. **No repository pattern and no dataclass mirror of the ORM** — the ORM *is* the persistence abstraction and Django's `QuerySet` *is* the query abstraction; adding a parallel entity layer would be the "additional abstraction layer" this principle forbids. `services.py` exists only for the three use cases that genuinely orchestrate multiple models plus an external call; single-model CRUD goes straight through the viewset/serializer. README records the sync-AI trade-off and its evolution path. **PASS** |
+| IV. Resilient External Integrations | Local CRUD survives ZapSign/LLM failure; document persisted before external calls; explicit pending/failed state; bounded configurable timeouts; retryable | `create_document` writes the row (`provider_status=pending_integration`) before any outbound call. ZapSign failure → `provider_status=failed`, retry via `POST /api/documents/{id}/resync/`. LLM failure → `DocumentAnalysis(state=failed, error_reason=...)`, retry via `POST /api/documents/{id}/analyze/`. All outbound calls use `httpx` timeouts from settings. **PASS** |
 | V. Secure, Observable REST API | Auth on every external endpoint (session/JWT for frontend, revocable API key for automation); RESTful on DRF; public `/api/health/` checking DB + integrations; structured logs with timing on integration calls + primary routes | `simplejwt` for the SPA; `djangorestframework-api-key` (`Authorization: Api-Key <key>`) for `automation` endpoints; ZapSign token never serialized. `core.health` view checks DB and (best-effort) provider reachability, unauthenticated. `core.middleware.RequestTimingLogger` + a gateway logging decorator emit JSON logs with route/provider, status, `elapsed_ms`. **PASS** |
 | VI. Explicit Domain Data Model | UUID PKs everywhere; PostgreSQL; all schema via migrations; Document→Signer cascade delete; `DocumentAnalysis` append-only with most-recent-as-current | `UUIDField(primary_key=True, default=uuid4, editable=False)` on every model. `Signer.document` FK `on_delete=CASCADE`. Analyses are insert-only; read endpoints return latest by `created_at`; history via `GET /api/documents/{id}/analyses/`. See [data-model.md](./data-model.md). **PASS** |
 | VII. Reproducible & Deploy-Ready Environment | Whole stack dockerized, `docker compose up` one command; multi-stage k8s-ready Dockerfiles; k8s manifests or documented cut; README enables full setup; reactive frontend, no reload | `deploy/docker-compose.yml` (postgres + backend + frontend + migrate job). Multi-stage `backend/Dockerfile` and `frontend/Dockerfile` (non-root, distroless/nginx runtime). `deploy/k8s/` Kustomize base + `local`/`prod` overlays with probes on `/api/health/`. `quickstart.md` + README cover setup/tests/endpoints. Angular signals + `HttpClient` re-fetch on mutation, no navigation reload. **PASS** |
 | Technology & Architecture Constraints | Fixed stack: Django+DRF, PostgreSQL, Angular, direct OpenAI (no LangChain), `pypdf`/`pdfplumber`, Pytest/Jest, Docker/k8s, SOLID/DDD-light/KISS; secrets via env/Secret; keep `.env.example` current | Matches exactly. Added by user input and recorded here: full type hints + `mypy` in CI, `ruff`, GitHub Actions pipeline — all consistent with the constraints (no deviation, no amendment required). `deploy/.env.example` maintained. **PASS** |
 
 **Result**: All gates pass. No violations → Complexity Tracking not required.
+
+## Architecture Stance
+
+*Recorded interpretation of Constitution Principle I, referenced from the Constitution
+Check table above.*
+
+The constitution requires domain, application and infrastructure concerns to be
+**separated**, and requires every external provider to sit behind an interface. It does
+not prescribe *where* the domain lives, and Principle III forbids abstraction layers a
+requirement does not demand. This project therefore separates by **role**, using Django's
+own seams rather than a parallel entity layer:
+
+| Concern | Where it lives | Why |
+|---|---|---|
+| Business rules and invariants | The model (`clean()`, methods, properties, `TextChoices`) | Active Record is Django's design. Rules hold for the API, the admin, a management command and a shell session alike, because they are attached to the object itself. |
+| Reusable query logic | `querysets.py` (custom `QuerySet` + a named `Manager`) | `QuerySet` *is* the query abstraction; a repository over it would restate it with fewer features. |
+| Use cases spanning several models **and** an external call | `services.py` — plain typed functions, gateways injected | These genuinely orchestrate: document create / resync / analyze. Single-model CRUD does not, and goes straight through viewset + serializer. |
+| HTTP shape and validation | DRF `serializers.py` / `views.py` | Where DRF puts them. Viewsets stay thin. |
+| Third-party access | `apps/integrations/` — one ABC per provider, plus a real and a fake implementation | This is the decoupling that pays: no model, queryset, service or view imports `httpx`, `openai` or `pypdf`, and every failure path is testable with a fake. |
+
+**What this stance deliberately rejects**: a repository pattern over the ORM, and a
+frozen-dataclass mirror of every model. Both restate what Django already provides, and
+adding them is the "additional abstraction layer" Principle III forbids. Frozen dataclasses
+*are* used where they earn their place — provider DTOs (`ZapSignCreateRequest`,
+`ProviderAnalysis`, `AnalysisResult`) and the derived `Alert` view — because those cross a
+boundary or have no table behind them.
+
+**Consequence for the data model**: entities below are Django models; the "Domain
+dataclass" lines in `data-model.md` describe behaviour that is implemented as model
+methods and properties (`Company.masked_token`, `Document.can_resync()`,
+`Document.mark_submitted()`, `Signer.normalized_email`, `DocumentAnalysis.has_risk_insight`).
+
 
 ## Project Structure
 
@@ -125,41 +163,38 @@ backend/
 │   └── wsgi.py
 └── apps/
     ├── core/
-    │   ├── domain/               # shared value objects, typed base entities, enums
+    │   ├── models.py             # abstract UUIDModel / TimeStampedModel bases
+    │   ├── values.py             # SecretString value object (credential masking)
+    │   ├── exceptions.py         # DRF handler -> {detail, code, fields}
+    │   ├── schema.py             # response serializers for hand-written views
     │   ├── health.py             # GET /api/health/ (DB + integrations, unauthenticated)
     │   ├── logging.py            # JSON formatter, gateway logging decorator
     │   ├── middleware.py         # per-request timing + structured access log
     │   ├── pagination.py
     │   └── tests/
     ├── companies/
-    │   ├── domain/
-    │   │   ├── entities.py       # Company entity (frozen dataclass, typed)
-    │   │   └── rules.py          # deletion guard, credential masking rules
-    │   ├── models.py             # Company ORM model (UUID PK)
-    │   ├── services.py           # CompanyService use cases
+    │   ├── models.py             # Company (UUID PK, masked_token, name invariant)
+    │   ├── querysets.py          # CompanyQuerySet (with_document_count, deletable)
     │   ├── serializers.py        # api_token write-only / masked
-    │   ├── views.py              # DRF viewset
+    │   ├── views.py              # DRF viewset; ProtectedError -> 409
     │   ├── urls.py
     │   ├── migrations/
-    │   └── tests/                # unit (domain) + api (viewset) + service tests
+    │   └── tests/                # model rules + api + delete guard + factories
     ├── documents/
-    │   ├── domain/
-    │   │   ├── entities.py       # Document, DocumentAnalysis entities
-    │   │   ├── status.py         # provider_status / signature status enums + transitions
-    │   │   └── rules.py          # create-before-call rule, latest-analysis selection
-    │   ├── models.py             # Document, DocumentAnalysis ORM (UUID PK, cascade)
-    │   ├── services.py           # DocumentService: create, resync, analyze, reports
+    │   ├── status.py             # ProviderStatus TextChoices + pure transition guard
+    │   ├── models.py             # Document, DocumentAnalysis (UUID PK, cascade, rules)
+    │   ├── querysets.py          # DocumentQuerySet (latest analysis, risk, stalled)
+    │   ├── services.py           # create_document / resync_document / analyze_document
+    │   ├── reports.py            # per-document + aggregated report aggregation
+    │   ├── alerts.py             # derived stalled/risk alerts (bonus)
     │   ├── serializers.py
     │   ├── views.py              # documents viewset + analyze/analyses/resync/report actions
     │   ├── urls.py
     │   ├── migrations/
     │   └── tests/
     ├── signers/
-    │   ├── domain/
-    │   │   ├── entities.py       # Signer entity
-    │   │   └── rules.py          # email/name validation, duplicate-email policy
-    │   ├── models.py             # Signer ORM (FK Document on_delete=CASCADE)
-    │   ├── services.py
+    │   ├── models.py             # Signer (FK Document CASCADE, unique email per document)
+    │   ├── querysets.py          # SignerQuerySet (for_document)
     │   ├── serializers.py
     │   ├── views.py
     │   ├── urls.py
@@ -171,7 +206,8 @@ backend/
     │   │   ├── client.py         # HttpZapSignGateway (httpx impl)
     │   │   └── tests/            # respx-mocked contract tests (TDD)
     │   ├── analysis/
-    │   │   ├── provider.py       # AnalysisProvider ABC + AnalysisResult dataclass
+    │   │   ├── provider.py       # AnalysisProvider ABC + ProviderAnalysis dataclass
+    │   │   ├── results.py        # AnalysisResult + Insight (pipeline output)
     │   │   ├── openai_provider.py# OpenAIAnalysisProvider (direct SDK)
     │   │   ├── clause_checker.py # regex/keyword missing-clause reinforcement
     │   │   ├── pipeline.py       # extract → LLM → regex merge → AnalysisResult
@@ -181,7 +217,8 @@ backend/
     │   │   └── tests/
     │   └── config.py             # typed integration settings (timeouts, model, base URLs)
     └── automation/
-        ├── auth.py               # API-key auth class + permission
+        ├── auth.py               # API-key auth class + permissions
+        ├── schema.py             # OpenAPI description of the API-key scheme
         ├── views.py              # document-create, analyze, per-doc report, summary report
         ├── webhook.py            # WebhookNotifier ABC + HttpWebhookNotifier + event builders
         ├── serializers.py
@@ -201,6 +238,7 @@ frontend/
 │   │   ├── companies/            # list + form (reactive, signal-based store)
 │   │   ├── documents/            # list + create form + detail (analysis view, resync, re-analyze)
 │   │   ├── signers/              # inline signer management within document form/detail
+│   │   ├── reports/              # aggregated report view
 │   │   ├── alerts/               # bonus: alerts dashboard
 │   │   └── shared/               # UI primitives, form helpers, error display
 │   └── environments/
@@ -228,7 +266,8 @@ README.md                         # setup, tests, endpoint docs, AI logic, archi
 
 **Structure Decision**: Web-application monorepo. Backend under `backend/` as a Django project
 (`config/`) with six domain-scoped apps under `backend/apps/` (Constitution Principle I / RNF13);
-each domain app carries a thin `domain/` (pure, typed) + `services.py` + DRF I/O layering, while
+each domain app keeps its rules on the models plus `querysets.py`, a thin `services.py` only
+where a use case spans several models and an external call, and DRF I/O on top, while
 `integrations/` is infrastructure-only and holds every third-party gateway behind an ABC. Frontend
 under `frontend/` as an Angular SPA. All deploy assets under `deploy/` (Compose + Kustomize). CI
 under `.github/workflows/`. This is the layout referenced by `data-model.md`, the contracts, and

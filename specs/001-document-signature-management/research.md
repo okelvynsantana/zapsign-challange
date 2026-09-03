@@ -92,7 +92,7 @@ No open `NEEDS CLARIFICATION` remains. Format per decision / rationale / alterna
 
 ## 8. Resilience pattern for external calls
 
-- **Decision**: `DocumentService.create` persists the `Document` row (`provider_status =
+- **Decision**: `create_document` (`apps/documents/services.py`) persists the `Document` row (`provider_status =
   pending_integration`) and its `Signer` rows in a transaction **before** any outbound call. ZapSign
   is then called; success updates `open_id`/`token`/`status`/`provider_status = submitted`, failure
   sets `provider_status = failed` (document kept). AI analysis is then attempted; failure writes a

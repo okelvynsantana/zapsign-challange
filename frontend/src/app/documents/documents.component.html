@@ -1,0 +1,108 @@
+<section class="panel">
+  <h2>Documents</h2>
+
+  <form [formGroup]="form" (ngSubmit)="submit()">
+    <label>
+      Organization
+      <select formControlName="company" data-testid="document-company">
+        <option value="">Select…</option>
+        @for (company of companyOptions(); track company.id) {
+          <option [value]="company.id">{{ company.name }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      Document name
+      <input type="text" formControlName="name" data-testid="document-name" />
+    </label>
+    <label>
+      PDF link
+      <input type="url" formControlName="pdf_url" data-testid="document-pdf" />
+    </label>
+    <label>
+      External reference (optional)
+      <input type="text" formControlName="external_id" />
+    </label>
+
+    <app-signer-rows [parent]="form" [makeRow]="makeRow" />
+
+    <button type="submit" [disabled]="form.invalid" data-testid="document-submit">
+      {{ isEditing() ? 'Save changes' : 'Create and send for signature' }}
+    </button>
+    @if (isEditing()) {
+      <button type="button" (click)="cancelEdit()">Cancel</button>
+    }
+  </form>
+
+  <app-error-message [error]="error()" />
+
+  @if (loading()) {
+    <p>Loading…</p>
+  } @else if (items().length === 0) {
+    <p data-testid="document-empty">No documents yet.</p>
+  } @else {
+    <table data-testid="document-list">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Hand-off</th>
+          <th>Signature</th>
+          <th>Signers</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (document of items(); track document.id) {
+          <tr>
+            <td>
+              <button type="button" class="link" (click)="select(document)">
+                {{ document.name }}
+              </button>
+            </td>
+            <td>
+              <span class="badge" [attr.data-status]="document.provider_status">
+                {{ document.provider_status }}
+              </span>
+              @if (document.last_provider_error) {
+                <small data-testid="document-error">{{ document.last_provider_error }}</small>
+              }
+            </td>
+            <td>{{ document.status || '—' }}</td>
+            <td>{{ document.signers.length }}</td>
+            <td>
+              @if (canResync(document)) {
+                <button type="button" (click)="resync(document)" data-testid="document-resync">
+                  Resync
+                </button>
+              }
+              <button type="button" (click)="edit(document)">Edit</button>
+              <button type="button" (click)="remove(document)">Delete</button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+
+  @if (selected(); as document) {
+    <aside class="detail" data-testid="document-detail">
+      <h3>{{ document.name }}</h3>
+      <dl>
+        <dt>ZapSign document id</dt>
+        <dd>{{ document.open_id ?? '—' }}</dd>
+        <dt>ZapSign token</dt>
+        <dd><code>{{ document.token || '—' }}</code></dd>
+        <dt>PDF</dt>
+        <dd>{{ document.pdf_url }}</dd>
+      </dl>
+      <h4>Signers</h4>
+      <ul>
+        @for (signer of document.signers; track signer.id) {
+          <li>{{ signer.name }} &lt;{{ signer.email }}&gt; — {{ signer.status || 'pending' }}</li>
+        }
+      </ul>
+
+      <app-analysis-panel [document]="document" (analyzed)="onAnalyzed(document)" />
+    </aside>
+  }
+</section>

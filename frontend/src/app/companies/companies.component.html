@@ -1,0 +1,56 @@
+<section class="panel">
+  <h2>Organization profile</h2>
+
+  <form [formGroup]="form" (ngSubmit)="submit()">
+    <label>
+      Name
+      <input type="text" formControlName="name" data-testid="company-name" />
+    </label>
+    <label>
+      ZapSign API token
+      <input
+        type="password"
+        formControlName="api_token"
+        data-testid="company-token"
+        [placeholder]="isEditing() ? 'Leave blank to keep the current token' : ''"
+      />
+    </label>
+
+    <button type="submit" [disabled]="form.invalid" data-testid="company-submit">
+      {{ isEditing() ? 'Save changes' : 'Create organization' }}
+    </button>
+    @if (isEditing()) {
+      <button type="button" (click)="cancelEdit()">Cancel</button>
+    }
+  </form>
+
+  <app-error-message [error]="error()" />
+
+  @if (loading()) {
+    <p>Loading…</p>
+  } @else if (items().length === 0) {
+    <p data-testid="company-empty">No organization profile yet.</p>
+  } @else {
+    <table data-testid="company-list">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>API token</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (company of items(); track company.id) {
+          <tr>
+            <td>{{ company.name }}</td>
+            <td><code>{{ company.api_token_masked }}</code></td>
+            <td>
+              <button type="button" (click)="edit(company)">Edit</button>
+              <button type="button" (click)="remove(company)">Delete</button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</section>

@@ -9,7 +9,8 @@
     "watch": "ng build --watch --configuration development",
     "test": "jest",
     "test:cov": "jest --coverage",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.spec.json --noEmit"
   },
   "dependencies": {
     "@angular/common": "^19.2.0",

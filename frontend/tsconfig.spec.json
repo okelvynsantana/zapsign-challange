@@ -4,6 +4,9 @@
   "compilerOptions": {
     "outDir": "./out-tsc/spec",
     "module": "CommonJS",
+    // Pairs with CommonJS so `tsc -p tsconfig.spec.json --noEmit` type-checks the specs
+    // (the base config's "bundler" resolution is only valid for ES modules).
+    "moduleResolution": "node",
     "target": "ES2022",
     "esModuleInterop": true,
     "types": ["jest", "node"]

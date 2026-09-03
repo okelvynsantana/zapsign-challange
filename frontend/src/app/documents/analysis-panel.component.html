@@ -1,0 +1,65 @@
+<section class="analysis" data-testid="analysis-panel">
+  <header>
+    <h4>AI analysis</h4>
+    <button type="button" (click)="analyze()" [disabled]="pending()" data-testid="analysis-run">
+      {{ pending() ? 'Analyzing…' : 'Re-analyze' }}
+    </button>
+    <button type="button" (click)="toggleHistory()" data-testid="analysis-history-toggle">
+      {{ historyVisible() ? 'Hide history' : 'Show history' }}
+    </button>
+  </header>
+
+  <app-error-message [error]="error()" />
+
+  @if (document().latest_analysis; as analysis) {
+    @if (analysis.state === 'failed') {
+      <p class="error" data-testid="analysis-failed">
+        Analysis failed: {{ analysis.error_reason }}. The document is unaffected — you can retry.
+      </p>
+    } @else {
+      <article data-testid="analysis-latest">
+        <p class="summary">{{ analysis.summary || 'No summary — produced by the rule-based pass.' }}</p>
+
+        <h5>Missing topics</h5>
+        @if (analysis.missing_topics.length === 0) {
+          <p>Nothing obviously missing.</p>
+        } @else {
+          <ul data-testid="analysis-missing">
+            @for (topic of analysis.missing_topics; track topic) {
+              <li>{{ topic }}</li>
+            }
+          </ul>
+        }
+
+        <h5>Insights</h5>
+        <ul data-testid="analysis-insights">
+          @for (insight of analysis.insights; track insight.text) {
+            <li [class.risk]="insight.risk">
+              @if (insight.risk) {
+                <span class="risk-flag" data-testid="analysis-risk">Risk</span>
+              }
+              {{ insight.text }}
+            </li>
+          }
+        </ul>
+
+        <footer>
+          <small>Produced by {{ analysis.source }}{{ analysis.model ? ' (' + analysis.model + ')' : '' }}</small>
+        </footer>
+      </article>
+    }
+  } @else {
+    <p data-testid="analysis-empty">No analysis yet.</p>
+  }
+
+  @if (historyVisible()) {
+    <ol data-testid="analysis-history">
+      @for (run of history(); track run.id) {
+        <li>
+          {{ run.created_at }} — {{ run.state }} ({{ run.source }}),
+          {{ riskCount(run) }} risk insight(s)
+        </li>
+      }
+    </ol>
+  }
+</section>

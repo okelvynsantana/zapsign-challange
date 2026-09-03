@@ -1,0 +1,36 @@
+<section class="panel">
+  <header>
+    <h2>Alerts</h2>
+    <button type="button" (click)="refresh()" data-testid="alerts-refresh">Refresh</button>
+  </header>
+
+  <app-error-message [error]="error()" />
+
+  @if (loading()) {
+    <p>Loading…</p>
+  } @else if (items().length === 0) {
+    <p data-testid="alerts-empty">Nothing needs attention right now.</p>
+  } @else {
+    <h3>Stalled documents</h3>
+    @if (stalled().length === 0) {
+      <p>None.</p>
+    } @else {
+      <ul data-testid="alerts-stalled">
+        @for (alert of stalled(); track alert.document_id + alert.since) {
+          <li><strong>{{ alert.document_name }}</strong> — {{ alert.detail }}</li>
+        }
+      </ul>
+    }
+
+    <h3>Risk findings</h3>
+    @if (risks().length === 0) {
+      <p>None.</p>
+    } @else {
+      <ul data-testid="alerts-risk">
+        @for (alert of risks(); track alert.document_id + alert.detail) {
+          <li><strong>{{ alert.document_name }}</strong> — {{ alert.detail }}</li>
+        }
+      </ul>
+    }
+  }
+</section>

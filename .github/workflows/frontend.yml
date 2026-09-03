@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   frontend:
-    name: eslint + jest + build
+    name: eslint + tsc + jest + build
     runs-on: ubuntu-latest
 
     defaults:
@@ -40,8 +40,11 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Type-check (app + specs)
+        run: npm run typecheck
+
       - name: Tests + coverage
-        run: npx jest --coverage --passWithNoTests
+        run: npx jest --coverage
 
       - name: Production build
         run: npm run build

@@ -1,0 +1,41 @@
+<section class="panel">
+  <h2>Reports</h2>
+
+  <app-error-message [error]="error()" />
+
+  @if (summary(); as report) {
+    <p data-testid="report-total">{{ report.total_documents }} document(s) in total.</p>
+
+    <h3>By hand-off status</h3>
+    <ul data-testid="report-provider-status">
+      @for (entry of entries(report.by_provider_status); track entry[0]) {
+        <li>{{ entry[0] }}: {{ entry[1] }}</li>
+      }
+    </ul>
+
+    <h3>By signature status</h3>
+    @if (entries(report.by_signature_status).length === 0) {
+      <p>No documents yet.</p>
+    } @else {
+      <ul data-testid="report-signature-status">
+        @for (entry of entries(report.by_signature_status); track entry[0]) {
+          <li>{{ entry[0] }}: {{ entry[1] }}</li>
+        }
+      </ul>
+    }
+
+    <h3>Risk</h3>
+    <p data-testid="report-risk-count">
+      {{ report.documents_with_risk_insight }} document(s) with a risk insight.
+    </p>
+    @if (report.recent_risk_insights.length > 0) {
+      <ul data-testid="report-risk-insights">
+        @for (insight of report.recent_risk_insights; track insight.document_id + insight.text) {
+          <li><strong>{{ insight.name }}:</strong> {{ insight.text }}</li>
+        }
+      </ul>
+    }
+  } @else if (!error()) {
+    <p>Loading…</p>
+  }
+</section>

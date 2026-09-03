@@ -7,11 +7,13 @@ FROM node:20-alpine AS build
 
 WORKDIR /app
 
+# NOTE: the build context is the repository ROOT (see deploy/docker-compose.yml), so every
+# source path below is repo-relative — `frontend/...`, not `./...`.
 # Dependencies first so the layer is cached while only sources change.
-COPY package.json package-lock.json ./
+COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 
-COPY . .
+COPY frontend/ .
 
 RUN npm run build -- --configuration production
 
@@ -23,7 +25,7 @@ FROM nginx:1.27-alpine AS runtime
 # `outputPath` in angular.json is `dist/frontend`; the application builder emits
 # the browser bundle into the `browser/` subdirectory.
 COPY --from=build /app/dist/frontend/browser /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Run as the image's unprivileged `nginx` user (uid 101). A non-root process
 # cannot bind port 80, so the server block listens on 8080 instead; nginx also

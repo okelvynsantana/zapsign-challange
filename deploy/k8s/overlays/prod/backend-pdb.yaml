@@ -1,0 +1,15 @@
+# Keep at least 2 backend pods serving during voluntary disruptions (node drains,
+# cluster upgrades). With the HPA floor at 3 this always leaves room to evict one.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: backend
+  labels:
+    app.kubernetes.io/name: backend
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: zapsign
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: backend

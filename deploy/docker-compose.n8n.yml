@@ -1,0 +1,80 @@
+# Optional overlay: a local n8n for exercising the outbound webhook (User Story 6)
+# end-to-end against the running stack.
+#
+#   docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.n8n.yml up -d
+#
+# n8n joins the same `appnet` as the backend, so inside the workflow the API is
+# reachable as http://backend:8000 — not localhost, which inside the n8n container
+# would mean n8n itself.
+#
+# This file is a development aid; it is deliberately NOT part of the main stack.
+
+name: zapsign
+
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      # --- n8n itself -------------------------------------------------------
+      N8N_HOST: localhost
+      N8N_PORT: "5678"
+      N8N_PROTOCOL: http
+      # Served over plain http locally, so the auth cookie must not be Secure-only.
+      N8N_SECURE_COOKIE: "false"
+      WEBHOOK_URL: http://localhost:5678/
+      GENERIC_TIMEZONE: America/Sao_Paulo
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_RUNNERS_ENABLED: "true"
+      # Expressions in the shipped workflow read $env.* (see deploy/n8n/README.md).
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
+
+      # --- what the shipped workflow expects --------------------------------
+      # Reachable from INSIDE the n8n container, hence the compose service name.
+      ZAPSIGN_BASE_APP_URL: http://backend:8000
+      ZAPSIGN_API_KEY: ${N8N_ZAPSIGN_API_KEY:-}
+      # Point at a real Slack incoming webhook; the local echo receiver below is
+      # the default so the chain completes with no Slack account.
+      SLACK_WEBHOOK_URL: ${N8N_SLACK_WEBHOOK_URL:-http://slack-echo:9100/slack}
+      # Only needed if you add the X-Signature verification Code node.
+      N8N_WEBHOOK_SECRET: ${N8N_WEBHOOK_SECRET:-}
+    volumes:
+      - n8ndata:/home/node/.n8n
+      # The workflow export, mounted read-only for `n8n import:workflow`.
+      - ./n8n:/import:ro
+    networks:
+      - appnet
+
+  # Stands in for Slack: logs whatever the workflow's last node posts, so the
+  # full chain is demonstrable without a Slack workspace.
+  slack-echo:
+    image: python:3.12-alpine
+    restart: unless-stopped
+    command:
+      - python
+      - -c
+      - |
+        import json
+        from http.server import BaseHTTPRequestHandler, HTTPServer
+
+        class H(BaseHTTPRequestHandler):
+            def do_POST(self):
+                body = self.rfile.read(int(self.headers.get("Content-Length", 0))).decode()
+                print("--- SLACK MESSAGE ---", flush=True)
+                try:
+                    print(json.dumps(json.loads(body), indent=2, ensure_ascii=False), flush=True)
+                except Exception:
+                    print(body, flush=True)
+                self.send_response(200); self.end_headers(); self.wfile.write(b"ok")
+
+            def log_message(self, *a):
+                pass
+
+        HTTPServer(("0.0.0.0", 9100), H).serve_forever()
+    networks:
+      - appnet
+
+volumes:
+  n8ndata:

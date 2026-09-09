@@ -1,0 +1,99 @@
+<div class="scroll-x">
+  <table class="table docs" data-testid="document-list">
+    <colgroup>
+      <col />
+      <col class="docs__c-handoff" />
+      <col class="docs__c-sig" />
+      <col class="docs__c-count" />
+      <col class="docs__c-analysis" />
+      <col class="docs__c-acts" />
+    </colgroup>
+    <thead>
+      <tr>
+        <th scope="col">Documento</th>
+        <th scope="col">Hand-off</th>
+        <th scope="col">Assinatura</th>
+        <th scope="col">Signatários</th>
+        <th scope="col">Análise</th>
+        <th scope="col"><span class="visually-hidden">Ações</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (document of documents(); track document.id) {
+        <tr [attr.aria-selected]="document.id === selectedId()">
+          <td>
+            <button type="button" class="docs__name t-name" (click)="selected.emit(document)">
+              {{ document.name }}
+            </button>
+            <p class="docs__meta">
+              {{ companyName(document) }} ·
+              {{ document.external_id || 'sem referência' }} ·
+              {{ document.created_at | date: 'dd/MM/yyyy' }}
+            </p>
+            @if (document.last_provider_error) {
+              <!-- The reason belongs beside the document it happened to: a failed
+                   hand-off is a recoverable state, not a lost record (FR-005). -->
+              <p class="docs__fail" data-testid="document-error">
+                <app-icon name="alert" />
+                <span>
+                  <span class="mono">{{ document.last_provider_error }}</span>
+                  <span class="docs__fail-note">
+                    O documento está salvo aqui; nada foi perdido.
+                  </span>
+                </span>
+              </p>
+            }
+          </td>
+          <td><app-provider-status-badge [status]="document.provider_status" /></td>
+          <td><app-signature-status [status]="document.status" /></td>
+          <td class="docs__count">{{ document.signers.length }}</td>
+          <td><app-analysis-marker [analysis]="document.latest_analysis" /></td>
+          <td>
+            <div class="docs__acts">
+              @if (canResync()(document)) {
+                <button
+                  type="button"
+                  class="btn btn--sm"
+                  (click)="resynced.emit(document)"
+                  data-testid="document-resync"
+                >
+                  <app-icon name="retry" />Reenviar
+                </button>
+              }
+              <button
+                type="button"
+                class="btn btn--sm btn--icon"
+                aria-haspopup="menu"
+                [attr.aria-expanded]="menuFor() === document.id"
+                [attr.aria-label]="'Mais ações para ' + document.name"
+                (click)="toggleMenu(document, $event)"
+              >
+                <app-icon name="ellipsis" />
+              </button>
+            </div>
+            @if (menuFor() === document.id) {
+              <div class="docs__menu" role="menu">
+                <button
+                  type="button"
+                  class="docs__item"
+                  role="menuitem"
+                  (click)="edited.emit(document)"
+                >
+                  Editar
+                </button>
+                <button
+                  type="button"
+                  class="docs__item docs__item--danger"
+                  role="menuitem"
+                  (click)="removed.emit(document)"
+                >
+                  Excluir
+                </button>
+              </div>
+            }
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>

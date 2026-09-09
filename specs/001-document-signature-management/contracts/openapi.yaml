@@ -1,0 +1,677 @@
+openapi: 3.1.0
+info:
+  title: Document & Signature Management System API
+  version: 0.1.0
+  description: >
+    Internal REST API for managing an organization profile, documents, and signers, with automatic
+    submission to the ZapSign sandbox and synchronous AI content analysis. See rest-api.md for the
+    narrative contract and error semantics. The ZapSign api_token is never returned by any response.
+servers:
+  - url: /api
+
+tags:
+  - name: auth
+  - name: health
+  - name: companies
+  - name: documents
+  - name: signers
+  - name: reports
+  - name: automation
+
+security:
+  - bearerAuth: []
+
+paths:
+  /auth/token/:
+    post:
+      tags: [auth]
+      security: []
+      summary: Obtain JWT access + refresh tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string }
+                password: { type: string, format: password }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access: { type: string }
+                  refresh: { type: string }
+        "401": { $ref: "#/components/responses/Error" }
+
+  /auth/token/refresh/:
+    post:
+      tags: [auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh]
+              properties:
+                refresh: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access: { type: string }
+        "401": { $ref: "#/components/responses/Error" }
+
+  /health/:
+    get:
+      tags: [health]
+      security: []
+      summary: Liveness/readiness probe (DB + best-effort integrations)
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+        "503":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+
+  /companies/:
+    get:
+      tags: [companies]
+      parameters:
+        - { $ref: "#/components/parameters/page" }
+        - { $ref: "#/components/parameters/pageSize" }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - type: object
+                    properties:
+                      results:
+                        type: array
+                        items: { $ref: "#/components/schemas/Company" }
+        "401": { $ref: "#/components/responses/Error" }
+    post:
+      tags: [companies]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CompanyWrite" }
+      responses:
+        "201":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Company" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+
+  /companies/{id}/:
+    parameters:
+      - { $ref: "#/components/parameters/id" }
+    get:
+      tags: [companies]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Company" }
+        "404": { $ref: "#/components/responses/Error" }
+    patch:
+      tags: [companies]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CompanyWrite" }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Company" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "404": { $ref: "#/components/responses/Error" }
+    delete:
+      tags: [companies]
+      responses:
+        "204": { description: deleted }
+        "404": { $ref: "#/components/responses/Error" }
+        "409":
+          description: company still has documents
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /documents/:
+    get:
+      tags: [documents]
+      parameters:
+        - { $ref: "#/components/parameters/page" }
+        - { $ref: "#/components/parameters/pageSize" }
+        - { name: provider_status, in: query, schema: { $ref: "#/components/schemas/ProviderStatus" } }
+        - { name: status, in: query, schema: { type: string } }
+        - { name: company, in: query, schema: { type: string, format: uuid } }
+        - { name: has_risk, in: query, schema: { type: boolean } }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - type: object
+                    properties:
+                      results:
+                        type: array
+                        items: { $ref: "#/components/schemas/Document" }
+        "401": { $ref: "#/components/responses/Error" }
+    post:
+      tags: [documents]
+      description: Create document + signers, submit to ZapSign, run analysis (all in this request).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DocumentCreate" }
+      responses:
+        "201":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Document" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+
+  /documents/{id}/:
+    parameters:
+      - { $ref: "#/components/parameters/id" }
+    get:
+      tags: [documents]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Document" }
+        "404": { $ref: "#/components/responses/Error" }
+    patch:
+      tags: [documents]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DocumentUpdate" }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Document" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "404": { $ref: "#/components/responses/Error" }
+    delete:
+      tags: [documents]
+      description: Deletes the document and cascades to its signers and analyses.
+      responses:
+        "204": { description: deleted }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /documents/{id}/resync/:
+    parameters:
+      - { $ref: "#/components/parameters/id" }
+    post:
+      tags: [documents]
+      description: Re-submit to / refresh from ZapSign. Allowed when provider_status is failed or submitted.
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Document" }
+        "409":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /documents/{id}/analyze/:
+    parameters:
+      - { $ref: "#/components/parameters/id" }
+    post:
+      tags: [documents]
+      description: Create a NEW analysis run. Never overwrites earlier analyses.
+      responses:
+        "201":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DocumentAnalysis" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /documents/{id}/analyses/:
+    parameters:
+      - { $ref: "#/components/parameters/id" }
+    get:
+      tags: [documents]
+      description: Analysis history, newest first.
+      parameters:
+        - { $ref: "#/components/parameters/page" }
+        - { $ref: "#/components/parameters/pageSize" }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - type: object
+                    properties:
+                      results:
+                        type: array
+                        items: { $ref: "#/components/schemas/DocumentAnalysis" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /documents/{id}/report/:
+    parameters:
+      - { $ref: "#/components/parameters/id" }
+    get:
+      tags: [documents, reports]
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DocumentReport" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /signers/:
+    get:
+      tags: [signers]
+      parameters:
+        - { name: document, in: query, schema: { type: string, format: uuid } }
+        - { $ref: "#/components/parameters/page" }
+        - { $ref: "#/components/parameters/pageSize" }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - type: object
+                    properties:
+                      results:
+                        type: array
+                        items: { $ref: "#/components/schemas/Signer" }
+        "401": { $ref: "#/components/responses/Error" }
+    post:
+      tags: [signers]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SignerWrite" }
+      responses:
+        "201":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Signer" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+
+  /signers/{id}/:
+    parameters:
+      - { $ref: "#/components/parameters/id" }
+    get:
+      tags: [signers]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Signer" }
+        "404": { $ref: "#/components/responses/Error" }
+    patch:
+      tags: [signers]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SignerWrite" }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Signer" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "404": { $ref: "#/components/responses/Error" }
+    delete:
+      tags: [signers]
+      responses:
+        "204": { description: deleted }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /reports/summary/:
+    get:
+      tags: [reports]
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SummaryReport" }
+
+  /automation/documents/:
+    post:
+      tags: [automation]
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DocumentCreate" }
+      responses:
+        "201":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Document" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+
+  /automation/documents/{id}/analyze/:
+    parameters:
+      - { $ref: "#/components/parameters/id" }
+    post:
+      tags: [automation]
+      security:
+        - apiKeyAuth: []
+      responses:
+        "201":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DocumentAnalysis" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /automation/documents/{id}/report/:
+    parameters:
+      - { $ref: "#/components/parameters/id" }
+    get:
+      tags: [automation]
+      security:
+        - apiKeyAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DocumentReport" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /automation/reports/summary/:
+    get:
+      tags: [automation]
+      security:
+        - apiKeyAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SummaryReport" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: 'Value must be: Api-Key <key>'
+
+  parameters:
+    id:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    pageSize:
+      name: page_size
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+
+  responses:
+    Error:
+      description: error
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    ValidationError:
+      description: validation error
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Error:
+      type: object
+      required: [detail]
+      properties:
+        detail: { type: string }
+        code: { type: string }
+        fields:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+
+    Page:
+      type: object
+      properties:
+        count: { type: integer }
+        next: { type: string, format: uri, nullable: true }
+        previous: { type: string, format: uri, nullable: true }
+        results: { type: array, items: {} }
+
+    Health:
+      type: object
+      properties:
+        status: { type: string, enum: [ok, unavailable] }
+        checks:
+          type: object
+          properties:
+            database: { type: string, enum: [ok, error] }
+            zapsign: { type: string, enum: [ok, skipped, error] }
+            openai: { type: string, enum: [ok, skipped, error] }
+
+    ProviderStatus:
+      type: string
+      enum: [pending_integration, submitted, failed]
+
+    AnalysisState:
+      type: string
+      enum: [succeeded, failed]
+
+    AnalysisSource:
+      type: string
+      enum: [llm, regex, "llm+regex"]
+
+    Company:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        api_token_masked: { type: string }
+        created_at: { type: string, format: date-time }
+        last_updated_at: { type: string, format: date-time }
+
+    CompanyWrite:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1 }
+        api_token:
+          type: string
+          writeOnly: true
+          description: Required on create; omit on update to keep the stored value.
+
+    SignerWrite:
+      type: object
+      required: [name, email]
+      properties:
+        document: { type: string, format: uuid }
+        name: { type: string, minLength: 1 }
+        email: { type: string, format: email }
+        external_id: { type: string, nullable: true }
+
+    Signer:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        document: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string, format: email }
+        status: { type: string, nullable: true }
+        token: { type: string, nullable: true }
+        external_id: { type: string, nullable: true }
+
+    SignerInput:
+      type: object
+      required: [name, email]
+      properties:
+        name: { type: string, minLength: 1 }
+        email: { type: string, format: email }
+        external_id: { type: string, nullable: true }
+
+    DocumentCreate:
+      type: object
+      required: [company, name, pdf_url, signers]
+      properties:
+        company: { type: string, format: uuid }
+        name: { type: string, minLength: 1 }
+        pdf_url: { type: string, format: uri }
+        external_id: { type: string, nullable: true }
+        signers:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/SignerInput" }
+
+    DocumentUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1 }
+        pdf_url: { type: string, format: uri }
+        external_id: { type: string, nullable: true }
+        signers:
+          type: array
+          items: { $ref: "#/components/schemas/SignerInput" }
+
+    DocumentAnalysis:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        state: { $ref: "#/components/schemas/AnalysisState" }
+        summary: { type: string }
+        missing_topics:
+          type: array
+          items: { type: string }
+        insights:
+          type: array
+          items:
+            type: object
+            properties:
+              text: { type: string }
+              risk: { type: boolean }
+        source: { $ref: "#/components/schemas/AnalysisSource" }
+        model: { type: string, nullable: true }
+        error_reason: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+
+    Document:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        company: { type: string, format: uuid }
+        name: { type: string }
+        pdf_url: { type: string, format: uri }
+        external_id: { type: string, nullable: true }
+        provider_status: { $ref: "#/components/schemas/ProviderStatus" }
+        status: { type: string, nullable: true }
+        open_id: { type: integer, nullable: true }
+        token: { type: string, nullable: true }
+        created_by: { type: string, nullable: true }
+        last_provider_error: { type: string, nullable: true }
+        signers:
+          type: array
+          items: { $ref: "#/components/schemas/Signer" }
+        latest_analysis:
+          oneOf:
+            - { $ref: "#/components/schemas/DocumentAnalysis" }
+            - { type: "null" }
+        created_at: { type: string, format: date-time }
+        last_updated_at: { type: string, format: date-time }
+
+    DocumentReport:
+      type: object
+      properties:
+        document_id: { type: string, format: uuid }
+        name: { type: string }
+        provider_status: { $ref: "#/components/schemas/ProviderStatus" }
+        signature_status: { type: string, nullable: true }
+        signers:
+          type: array
+          items:
+            type: object
+            properties:
+              name: { type: string }
+              email: { type: string, format: email }
+              status: { type: string, nullable: true }
+        latest_analysis:
+          oneOf:
+            - { $ref: "#/components/schemas/DocumentAnalysis" }
+            - { type: "null" }
+        created_at: { type: string, format: date-time }
+        last_updated_at: { type: string, format: date-time }
+
+    SummaryReport:
+      type: object
+      properties:
+        total_documents: { type: integer }
+        by_provider_status:
+          type: object
+          additionalProperties: { type: integer }
+        by_signature_status:
+          type: object
+          additionalProperties: { type: integer }
+        documents_with_risk_insight: { type: integer }
+        recent_risk_insights:
+          type: array
+          items:
+            type: object
+            properties:
+              document_id: { type: string, format: uuid }
+              name: { type: string }
+              text: { type: string }
+              created_at: { type: string, format: date-time }
+        generated_at: { type: string, format: date-time }

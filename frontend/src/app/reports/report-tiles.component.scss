@@ -1,0 +1,32 @@
+.tiles {
+  display: grid;
+  /* Four across when there is room; the tiles reflow rather than shrink the
+     hero number below its scale step. */
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: var(--space-3);
+}
+
+.tiles__tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+}
+
+/* The two families are never interchangeable: red is a defect in our
+   processing, ochre a finding about the contract (Principle IX). */
+.tiles__tile--bad {
+  border-color: var(--bad-line);
+
+  .t-hero {
+    color: var(--bad-ink);
+  }
+}
+
+.tiles__tile--risk {
+  border-color: var(--warn-line);
+
+  .t-hero {
+    color: var(--warn-ink);
+  }
+}

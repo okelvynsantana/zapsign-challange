@@ -1,0 +1,97 @@
+<section class="companies">
+  <header class="companies__head">
+    <p class="eyebrow">Cadastro</p>
+    <h1 class="t-page">Organizações</h1>
+    <p class="t-body companies__lead">
+      Cada organização guarda a credencial que entrega os documentos ao ZapSign.
+    </p>
+  </header>
+
+  @if (refusal(); as refused) {
+    <div class="banner refusal" role="alert" data-testid="company-refusal">
+      <span class="refusal__mark"><app-icon name="alert" [size]="14" /></span>
+      <div class="refusal__body">
+        <p class="banner__title">Exclusão recusada — a organização continua na lista</p>
+        <p class="t-value refusal__text">{{ refused.detail }}</p>
+        <p class="t-support refusal__text">
+          Ela ainda tem documentos vinculados. Excluí-la deixaria esses documentos órfãos, sem a
+          credencial que os entregou ao ZapSign.
+        </p>
+        <p class="t-support refusal__text">
+          Mova esses documentos para outra organização, ou exclua-os, antes de tentar de novo.
+        </p>
+        <p class="banner__code">HTTP 409 · {{ refused.code }}</p>
+      </div>
+    </div>
+  } @else {
+    <app-error-message [error]="error()" />
+  }
+
+  <div class="companies__grid">
+    <app-company-form
+      [form]="form"
+      [editing]="isEditing()"
+      [maskedToken]="editingMask()"
+      (submitted)="submit()"
+      (cancelled)="cancelEdit()"
+    />
+
+    <div class="card companies__list">
+      @if (loading()) {
+        <p class="t-support companies__loading">Carregando…</p>
+      } @else if (items().length === 0) {
+        <app-empty-state
+          data-testid="company-empty"
+          title="Nenhuma organização cadastrada"
+          description="Cadastre a primeira ao lado para começar a entregar documentos."
+          icon="document"
+        />
+      } @else {
+        <div class="scroll-x companies__table">
+          <table class="table" data-testid="company-list">
+            <thead>
+              <tr>
+                <th scope="col">Nome</th>
+                <th scope="col">Credencial</th>
+                <th scope="col"><span class="visually-hidden">Ações</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (company of items(); track company.id) {
+                <tr>
+                  <td class="t-name">{{ company.name }}</td>
+                  <td>
+                    <span class="t-value companies__token">
+                      <app-icon name="lock" [size]="11" />
+                      {{ company.api_token_masked }}
+                    </span>
+                  </td>
+                  <td>
+                    <div class="companies__actions">
+                      <button
+                        type="button"
+                        class="btn btn--sm"
+                        [attr.aria-label]="'Editar ' + company.name"
+                        (click)="edit(company)"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn--sm btn--danger"
+                        [attr.aria-label]="'Excluir ' + company.name"
+                        (click)="remove(company)"
+                      >
+                        Excluir
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+  </div>
+</section>

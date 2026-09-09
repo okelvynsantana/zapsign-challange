@@ -1,0 +1,104 @@
+/* The rail is one column of stacked blocks separated by hairlines; the blocks
+ * themselves carry no card of their own, so the eye reads one surface. */
+.rail {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.rail__head,
+.rail__status,
+.rail__block {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--line);
+}
+
+.rail__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.rail__title {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  flex-grow: 1;
+  min-width: 0;
+}
+
+.rail__head-acts {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* The three scales sit together once, so their difference is legible at a
+ * glance before the reader goes looking for any one of them. */
+.rail__status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.rail__fail {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--line);
+  background: var(--bad-bg);
+  color: var(--bad-ink);
+  font-size: 11.5px;
+  line-height: 1.45;
+
+  app-icon {
+    margin-top: 2px;
+  }
+
+  span {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+}
+
+.rail__fail-note {
+  color: var(--ink-2);
+}
+
+.kv {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--line);
+}
+
+.rail__pdf {
+  overflow-wrap: anywhere;
+}
+
+.rail__signers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.rail__signer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px var(--space-2);
+  align-items: baseline;
+}
+
+.rail__mail {
+  grid-column: 1;
+  font-size: 10.5px;
+  color: var(--ink-3);
+  overflow-wrap: anywhere;
+}
+
+.rail__signer app-signature-status {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+}

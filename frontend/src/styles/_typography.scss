@@ -1,0 +1,85 @@
+/* Faces and the type scale.
+ *
+ * Self-hosted (Constitution Principle VIII): the whole stack must run with no
+ * external network, so no request may reach a font host.
+ *
+ * The sans family ships a weight-axis variable build, which covers 400/500/600
+ * in one file. The mono family has NO variable build published, so it ships two
+ * static weights (research R-001, verified against the registry).
+ *
+ * The sans package publishes no per-subset entry point, so `wght.css` is
+ * imported whole; it declares every subset but each carries a unicode-range, so
+ * a browser downloads the latin file alone. The mono package does publish
+ * per-subset entries, so only latin is imported.
+ */
+@use '@fontsource-variable/ibm-plex-sans/wght.css';
+@use '@fontsource/ibm-plex-mono/latin-400.css';
+@use '@fontsource/ibm-plex-mono/latin-500.css';
+
+body {
+  font: 400 13px / 1.5 var(--font-sans);
+  text-wrap: pretty;
+}
+
+h1, h2, h3, h4, h5 {
+  font-weight: 600;
+  letter-spacing: -0.012em;
+}
+
+/* Family carries provenance: sans for what a person wrote, mono for what the
+ * machine recorded — status values, identifiers, counts, dates, error codes. */
+.mono {
+  font-family: var(--font-mono);
+}
+
+.t-page {
+  font-size: 27px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.t-section {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+}
+
+.t-panel {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.t-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.t-body {
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.t-support {
+  font-size: 11.5px;
+  color: var(--ink-2);
+}
+
+.t-value {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+}
+
+.t-hero {
+  font-family: var(--font-mono);
+  font-size: 34px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.eyebrow {
+  font: 500 10px / 1 var(--font-mono);
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}

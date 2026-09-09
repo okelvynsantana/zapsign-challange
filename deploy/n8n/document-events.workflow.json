@@ -1,0 +1,155 @@
+{
+  "name": "ZapSign — document events",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "zapsign-document-events",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "a3cefd75-dbad-47de-8e6e-e15052c58b90",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-120, 300],
+      "webhookId": "4f59a2e6-447e-421e-8af0-11c839ef2038",
+      "notes": "Receives document.status_changed / document.analyzed from the ZapSign backend (N8N_WEBHOOK_URL)."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ec2c011c-03fe-4f6c-a588-deaf84475aad",
+              "leftValue": "={{ $json.body.has_risk_insight }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "411b7b17-b08c-4ff8-9f3c-b7a992281295",
+      "name": "Has risk insight?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [140, 300],
+      "notes": "True branch = the latest analysis succeeded and carries at least one insight with risk=true."
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.ZAPSIGN_BASE_APP_URL }}{{ $json.body.report_url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Api-Key {{ $env.ZAPSIGN_API_KEY }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "75fd1902-2a30-4874-94f8-a5aae50a1552",
+      "name": "Fetch document report",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 180],
+      "notes": "GET {ZAPSIGN_BASE_APP_URL}{report_url} with the revocable API key. No stored credential, so the export imports cleanly."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SLACK_WEBHOOK_URL }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ text: `Risk found in ${$('Webhook').item.json.body.document_name}\\n\\nEvent: ${$('Webhook').item.json.body.event} (${$('Webhook').item.json.body.occurred_at})\\nProvider status: ${$('Webhook').item.json.body.provider_status} | Signature status: ${$('Webhook').item.json.body.signature_status}\\nSummary: ${($json.latest_analysis && $json.latest_analysis.summary) || 'n/a'}\\nMissing topics: ${(($json.latest_analysis && $json.latest_analysis.missing_topics) || []).join(', ') || 'none'}\\nReport: ${$env.ZAPSIGN_BASE_APP_URL}${$('Webhook').item.json.body.report_url}` }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "ca4298b8-d3a7-41a6-bd5e-a0be0a51d04e",
+      "name": "Notify Slack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [700, 180],
+      "notes": "Plain HTTP POST to a Slack incoming webhook (not the Slack node) so this export carries no credential references."
+    },
+    {
+      "parameters": {},
+      "id": "6f6ec5fd-fd3e-44d8-89f2-ab9f924a064c",
+      "name": "No risk — ignore",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [420, 420],
+      "notes": "has_risk_insight = false: nothing to do."
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Has risk insight?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has risk insight?": {
+      "main": [
+        [
+          {
+            "node": "Fetch document report",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No risk — ignore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch document report": {
+      "main": [
+        [
+          {
+            "node": "Notify Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}

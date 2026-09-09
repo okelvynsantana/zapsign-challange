@@ -1,0 +1,71 @@
+<aside class="card rail" data-testid="document-detail">
+  <header class="rail__head">
+    <div class="rail__title">
+      <p class="eyebrow">Documento</p>
+      <h2 class="t-panel">{{ document().name }}</h2>
+    </div>
+    <div class="rail__head-acts">
+      <button type="button" class="btn btn--sm" (click)="edited.emit(document())">Editar</button>
+      <button
+        type="button"
+        class="btn btn--sm btn--icon"
+        aria-label="Fechar detalhe"
+        (click)="closed.emit()"
+      >
+        <app-icon name="close" />
+      </button>
+    </div>
+  </header>
+
+  <div class="rail__status">
+    <app-provider-status-badge [status]="document().provider_status" />
+    <app-signature-status [status]="document().status" />
+    <app-analysis-marker [analysis]="document().latest_analysis" />
+  </div>
+
+  @if (document().last_provider_error) {
+    <p class="rail__fail">
+      <app-icon name="alert" />
+      <span>
+        <span class="mono">{{ document().last_provider_error }}</span>
+        <span class="rail__fail-note">
+          O documento está salvo aqui; nada foi perdido. Use “Reenviar” na lista.
+        </span>
+      </span>
+    </p>
+  }
+
+  <dl class="kv">
+    <dt>Organização</dt>
+    <dd>{{ companyName() || document().company }}</dd>
+    <dt>ID ZapSign</dt>
+    <dd class="mono">{{ document().open_id ?? '—' }}</dd>
+    <dt>Token</dt>
+    <dd class="mono">{{ document().token || '—' }}</dd>
+    <dt>Referência</dt>
+    <dd class="mono">{{ document().external_id || '—' }}</dd>
+    <dt>PDF</dt>
+    <dd>
+      <a class="rail__pdf" [href]="document().pdf_url" target="_blank" rel="noreferrer">
+        {{ document().pdf_url }}
+      </a>
+    </dd>
+    <dt>Criado em</dt>
+    <dd class="mono">{{ document().created_at | date: 'dd/MM/yyyy HH:mm' }}</dd>
+  </dl>
+
+  <section class="rail__block">
+    <h3 class="eyebrow">Signatários</h3>
+    <ul class="rail__signers">
+      @for (signer of document().signers; track signer.id) {
+        <li class="rail__signer">
+          <span class="t-name">{{ signer.name }}</span>
+          <span class="rail__mail mono">{{ signer.email }}</span>
+          <app-signature-status [status]="signer.status" />
+        </li>
+      }
+    </ul>
+  </section>
+
+  <app-analysis-panel [document]="document()" (analyzed)="analyzed.emit(document())" />
+</aside>

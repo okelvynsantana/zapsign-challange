@@ -1,0 +1,64 @@
+<section class="report">
+  <header class="report__head">
+    <div>
+      <h2 class="t-section">Relatório consolidado</h2>
+      <p class="t-support">Os mesmos números que a automação lê pela API.</p>
+    </div>
+    @if (summary(); as report) {
+      <p class="eyebrow">Gerado em {{ timestamp(report.generated_at) }}</p>
+    }
+  </header>
+
+  <app-error-message [error]="error()" />
+
+  @if (summary(); as report) {
+    <app-report-tiles [report]="report" />
+
+    <div class="report__figures">
+      <app-report-distribution
+        data-testid="report-provider-status"
+        heading="Envio à ZapSign"
+        description="Em que ponto está o envio de cada documento ao provedor."
+        scale="provider"
+        [entries]="providerEntries()"
+      />
+      <app-report-distribution
+        data-testid="report-signature-status"
+        heading="Assinatura"
+        description="O que o provedor informou sobre a assinatura."
+        scale="signature"
+        empty="Nenhum documento ainda."
+        [entries]="signatureEntries()"
+      />
+    </div>
+
+    <section class="card risks">
+      <div class="risks__head">
+        <h3 class="t-panel">Riscos recentes</h3>
+        <p class="t-support">Os últimos trechos que a análise marcou como risco contratual.</p>
+      </div>
+
+      @if (report.recent_risk_insights.length > 0) {
+        <ul class="risks__list" data-testid="report-risk-insights">
+          @for (
+            insight of report.recent_risk_insights;
+            track insight.document_id + insight.text
+          ) {
+            <li class="risks__item">
+              <p class="risks__meta">
+                <span class="mark mark--risk"><app-icon name="risk" /> Risco</span>
+                <span class="mono risks__date">{{ insight.created_at.slice(0, 10) }}</span>
+              </p>
+              <p class="t-name">{{ insight.name }}</p>
+              <p class="t-body risks__text">{{ insight.text }}</p>
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="t-support">Nenhum risco em aberto nos documentos analisados.</p>
+      }
+    </section>
+  } @else if (!error()) {
+    <p class="t-support">Carregando…</p>
+  }
+</section>

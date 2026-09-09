@@ -1,0 +1,85 @@
+<form class="card cform" [formGroup]="form()" (ngSubmit)="submitted.emit()">
+  <header class="cform__head">
+    <p class="eyebrow">{{ editing() ? 'Editando' : 'Nova' }}</p>
+    <h2 class="t-panel">Organização</h2>
+  </header>
+
+  <div class="field">
+    <label class="field__label" for="company-name">Nome</label>
+    <input
+      id="company-name"
+      class="inp"
+      type="text"
+      formControlName="name"
+      autocomplete="organization"
+      data-testid="company-name"
+      [attr.aria-invalid]="nameFailed() ? 'true' : null"
+      [attr.aria-describedby]="nameFailed() ? 'company-name-error' : null"
+    />
+    @if (nameFailed()) {
+      <p class="field__error" id="company-name-error">Informe o nome da organização.</p>
+    }
+  </div>
+
+  <div class="secret">
+    <p class="secret__head">
+      <span class="secret__mark"><app-icon name="lock" [size]="13" /></span>
+      <span class="eyebrow secret__muted">Credencial ZapSign</span>
+    </p>
+
+    @if (editing()) {
+      <dl class="kv secret__stored">
+        <dt>Guardado</dt>
+        <dd class="mono">{{ maskedToken() || '—' }}</dd>
+      </dl>
+    }
+
+    <div class="field">
+      <label class="field__label secret__label" for="company-token">
+        {{ editing() ? 'Novo token (opcional)' : 'Token da API' }}
+      </label>
+      <input
+        id="company-token"
+        class="inp"
+        type="password"
+        formControlName="api_token"
+        autocomplete="off"
+        spellcheck="false"
+        data-testid="company-token"
+        [attr.aria-invalid]="tokenFailed() ? 'true' : null"
+        [attr.aria-describedby]="tokenDescribedBy()"
+      />
+      @if (tokenFailed()) {
+        <p class="field__error secret__error" id="company-token-error">
+          Informe o token da API.
+        </p>
+      }
+      <div class="secret__notes" id="company-token-hint">
+        @if (editing()) {
+          <p class="t-support secret__muted">
+            O campo começa vazio de propósito. Deixe em branco e o token já guardado continua
+            valendo; preencha apenas para substituí-lo.
+          </p>
+        }
+        <p class="t-support secret__muted">
+          A API devolve somente a forma mascarada: o valor não volta em nenhuma resposta e não
+          aparece em log.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="cform__actions">
+    <button
+      type="submit"
+      class="btn btn--primary"
+      data-testid="company-submit"
+      [disabled]="submitDisabled()"
+    >
+      {{ editing() ? 'Salvar alterações' : 'Criar organização' }}
+    </button>
+    @if (editing()) {
+      <button type="button" class="btn" (click)="cancelled.emit()">Cancelar</button>
+    }
+  </div>
+</form>

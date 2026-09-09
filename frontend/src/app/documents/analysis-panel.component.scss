@@ -1,0 +1,96 @@
+/* Layout only.
+ *
+ * Every mark, badge, chip and type step the panel uses is a global class
+ * (Constitution Principle XI); restating one here would ship the same bytes
+ * twice and let the two copies drift. What is left is arrangement.
+ */
+
+:host {
+  display: block;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+.panel__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  /* Pushed to the trailing edge so the title keeps the reading position even
+   * when the action label changes length between the four states. */
+  margin-left: auto;
+}
+
+.state,
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.state {
+  gap: var(--space-3);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.insights {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Red, and red only. A flagged insight is a judgement about the contract and
+ * lives in the ochre family inside app-insight-item; a failed run is a defect
+ * in our own processing. The two never meet in one colour (Principle IX). */
+.fail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--bad-line);
+  border-radius: var(--radius-control);
+  background: var(--bad-bg);
+}
+
+.fail__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--bad-ink);
+}
+
+.fail .t-body,
+.fail .t-support {
+  color: var(--bad-ink);
+}
+
+.prov {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--line);
+}
+
+.history {
+  display: flex;
+  flex-direction: column;
+}

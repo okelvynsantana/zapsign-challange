@@ -1,0 +1,105 @@
+:host {
+  /* Wider than the detail rail because this column carries prose rather than a
+   * record. Declared here, not as a token: it is layout for one screen. */
+  --login-panel: 520px;
+
+  display: block;
+}
+
+.login {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  /* The panel is the page, not a card floating on it: without a height to fill
+   * it stops at its own content and leaves a dead band beneath. */
+  min-height: calc(100vh - var(--h-header));
+}
+
+/* The panel stands beside the form only where both fit; below that it stacks,
+ * so the page never scrolls sideways (FR-027). */
+@media (min-width: 58rem) {
+  .login {
+    grid-template-columns: minmax(0, var(--login-panel)) minmax(0, 1fr);
+  }
+}
+
+/* The panel is the product speaking; the right side is the form. It stays dark
+ * in both themes — built from --ink/--paper it would flip and become a light
+ * slab on a dark page. */
+.login__brand {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--space-6);
+  padding: var(--space-6);
+  background: var(--inverse-surface);
+  color: var(--inverse-ink);
+}
+
+.login__intro,
+.login__cycle,
+.login__form-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.login__title {
+  color: var(--inverse-ink);
+}
+
+.login__muted,
+.login__lead,
+.login__gloss {
+  color: var(--inverse-ink-2);
+}
+
+.login__states {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.login__state {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.login__mark {
+  display: inline-flex;
+}
+
+/* Each family's "line" member is the one that survives the inversion; the ink
+ * members are tuned for the light ground and disappear here. */
+.login__mark--pending {
+  color: var(--line-2);
+}
+
+.login__mark--ok {
+  color: var(--ok-line);
+}
+
+.login__mark--bad {
+  color: var(--bad-line);
+}
+
+.login__side {
+  display: flex;
+  justify-content: center;
+  padding: var(--page-pad-y) var(--page-pad-x);
+}
+
+.login__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  align-self: center;
+  width: 100%;
+  max-width: var(--rail-width);
+  padding: var(--space-5);
+}
+
+.login__submit {
+  align-self: flex-start;
+}

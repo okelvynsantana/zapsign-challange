@@ -1,0 +1,20 @@
+/* TypeScript configuration used by Jest (ts-jest via jest-preset-angular). */
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./out-tsc/spec",
+    "module": "CommonJS",
+    // Pairs with CommonJS so `tsc -p tsconfig.spec.json --noEmit` type-checks the specs
+    // (the base config's "bundler" resolution is only valid for ES modules).
+    "moduleResolution": "node",
+    "target": "ES2022",
+    "esModuleInterop": true,
+    "types": ["jest", "node"]
+  },
+  "include": [
+    "src/**/*.spec.ts",
+    "src/**/*.d.ts",
+    "src/test/**/*.ts",
+    "jest.config.ts"
+  ]
+}

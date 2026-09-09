@@ -1,0 +1,63 @@
+<section class="alerts">
+  <header class="alerts__head">
+    <div class="alerts__title">
+      <p class="eyebrow">Operação</p>
+      <h1 class="t-page">Alertas</h1>
+    </div>
+    <button
+      type="button"
+      class="btn btn--sm"
+      [disabled]="loading()"
+      (click)="refresh()"
+      data-testid="alerts-refresh"
+    >
+      <app-icon name="retry" />
+      Atualizar
+    </button>
+  </header>
+
+  <app-error-message [error]="error()" />
+
+  @if (loading()) {
+    <p class="alerts__loading card t-support">Carregando alertas…</p>
+  } @else if (items().length > 0) {
+    <p class="alerts__note t-body">
+      Os dois grupos são problemas diferentes, com soluções diferentes: um documento pode estar
+      parado e também ter um risco na análise, e então aparece nos dois.
+    </p>
+
+    <div class="alerts__groups">
+      <app-alert-group
+        [title]="'Documentos parados'"
+        icon="clock"
+        listTestId="alerts-stalled"
+        hint="Sem assinatura além do limite de dias."
+        [alerts]="stalled()"
+        [count]="stalled().length"
+      />
+      <app-alert-group
+        [title]="'Achados de risco'"
+        icon="risk"
+        tone="risk"
+        listTestId="alerts-risk"
+        hint="Apontados na análise mais recente."
+        [alerts]="risks()"
+        [count]="risks().length"
+      />
+    </div>
+  } @else if (!error()) {
+    <!-- Nothing to show is the answer here, not a gap in the data: it is stated
+         in the affirmative and in the positive colour (FR-013). A failed read is
+         a different thing, and the banner above already says so. -->
+    <div class="card" data-testid="alerts-empty">
+      <app-empty-state
+        [positive]="true"
+        icon="check-circle"
+        [title]="'Nada precisa de atenção agora'"
+        [description]="
+          'Nenhum documento passou do limite de dias sem assinatura e nenhuma análise recente apontou risco.'
+        "
+      />
+    </div>
+  }
+</section>

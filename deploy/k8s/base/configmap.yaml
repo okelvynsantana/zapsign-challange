@@ -1,0 +1,52 @@
+# Non-secret runtime configuration for the backend (and postgres bootstrap values).
+# Mirrors deploy/.env.example minus the secret keys, which live in the Secret
+# `zapsign-secrets` (see secret.example.yaml).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zapsign-config
+  labels:
+    app.kubernetes.io/name: zapsign
+data:
+  # --- Database (password lives in the Secret) ---
+  POSTGRES_DB: "zapsign"
+  POSTGRES_USER: "zapsign"
+  POSTGRES_HOST: "postgres"
+  POSTGRES_PORT: "5432"
+
+  # --- Django ---
+  DJANGO_SETTINGS_MODULE: "config.settings.prod"
+  DJANGO_DEBUG: "false"
+  DJANGO_ALLOWED_HOSTS: "zapsign.local,backend,localhost,127.0.0.1"
+  DJANGO_CORS_ALLOWED_ORIGINS: "http://zapsign.local"
+
+  # --- Seed user (password lives in the Secret) ---
+  SEED_USERNAME: "admin"
+
+  # --- ZapSign integration ---
+  ZAPSIGN_BASE_URL: "https://sandbox.api.zapsign.com.br"
+  ZAPSIGN_TIMEOUT_SECONDS: "10"
+  ZAPSIGN_VERIFY_SSL: "true"
+  ZAPSIGN_USE_FAKE: "false"
+
+  # --- AI analysis (OPENAI_API_KEY lives in the Secret) ---
+  AI_MODEL: "gpt-4o-mini"
+  AI_TIMEOUT_SECONDS: "15"
+  AI_MAX_INPUT_CHARS: "20000"
+  AI_REGEX_FALLBACK_ENABLED: "true"
+  AI_USE_FAKE: "false"
+
+  # --- PDF extraction ---
+  PDF_FETCH_TIMEOUT_SECONDS: "10"
+  PDF_MAX_BYTES: "20971520"
+
+  # --- Alerts ---
+  ALERT_STALLED_DAYS: "5"
+
+  # --- Outbound automation webhook (secret lives in the Secret) ---
+  N8N_WEBHOOK_URL: ""
+  WEBHOOK_TIMEOUT_SECONDS: "5"
+  WEBHOOK_ON_EVERY_ANALYSIS: "false"
+
+  # --- Public base URL used when building absolute links ---
+  PUBLIC_BASE_URL: "http://zapsign.local"

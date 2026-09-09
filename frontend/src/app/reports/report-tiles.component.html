@@ -1,0 +1,32 @@
+<ul class="tiles">
+  <li class="card tiles__tile">
+    <p class="eyebrow">Total de documentos</p>
+    <p class="t-hero" data-testid="report-total">{{ report().total_documents }}</p>
+    <p class="t-support">Base de todos os números desta página.</p>
+  </li>
+
+  <li class="card tiles__tile">
+    <p class="eyebrow">Aguardando assinatura</p>
+    <p class="t-hero">{{ awaiting() }}</p>
+    <p class="t-support">
+      @if (awaitingValues().length > 0) {
+        Nos estados <span class="mono">{{ awaitingValues().join(', ') }}</span
+        >.
+      } @else {
+        Nenhum estado de assinatura pendente.
+      }
+    </p>
+  </li>
+
+  <li class="card tiles__tile tiles__tile--bad">
+    <p class="eyebrow">Falhas no envio</p>
+    <p class="t-hero">{{ failed() }}</p>
+    <p class="t-support">Documentos no estado <span class="mono">failed</span>.</p>
+  </li>
+
+  <li class="card tiles__tile tiles__tile--risk">
+    <p class="eyebrow">Com risco aberto</p>
+    <p class="t-hero" data-testid="report-risk-count">{{ report().documents_with_risk_insight }}</p>
+    <p class="t-support">Documentos com ao menos um insight de risco.</p>
+  </li>
+</ul>

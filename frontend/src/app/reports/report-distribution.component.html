@@ -1,0 +1,33 @@
+<figure class="card dist">
+  <figcaption class="dist__head">
+    <h3 class="t-panel">{{ heading() }}</h3>
+    <p class="t-support">{{ description() }}</p>
+  </figcaption>
+
+  @if (bars().length > 0) {
+    <ul class="dist__bars">
+      @for (bar of bars(); track bar.value) {
+        <li class="dist__bar">
+          <div class="dist__row">
+            @if (scale() === 'provider') {
+              <app-provider-status-badge [status]="bar.value" />
+            } @else {
+              <app-signature-status [status]="bar.value" />
+            }
+            <span class="mono dist__count">{{ bar.count }}</span>
+          </div>
+          <!-- The row above already states the label and the count, so the bar
+               itself carries nothing for a screen reader to repeat. -->
+          <div class="dist__track" aria-hidden="true">
+            <span
+              [class]="'dist__fill dist__fill--' + bar.tone"
+              [style.width.%]="bar.share"
+            ></span>
+          </div>
+        </li>
+      }
+    </ul>
+  } @else {
+    <p class="t-support">{{ empty() }}</p>
+  }
+</figure>

@@ -1,0 +1,103 @@
+/* List and rail side by side. The rail is fixed so the list absorbs the width
+ * a wider screen gives, and neither ever displaces the other (FR-017). */
+.page {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding: var(--page-pad-y) var(--page-pad-x);
+}
+
+.page__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  flex-grow: 1;
+  min-width: 0;
+}
+
+.page__rail {
+  width: var(--rail-width);
+  flex-shrink: 0;
+}
+
+.page__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.page__count {
+  flex-grow: 1;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+
+.page__table {
+  padding-top: var(--space-3);
+  overflow: hidden;
+}
+
+.page__loading {
+  color: var(--ink-3);
+}
+
+.filters {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.filters__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-left: var(--space-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+}
+
+/* The select carries the border of the wrapper, not one of its own. */
+.filters__item .sel {
+  border: 0;
+  background: none;
+}
+
+.filters__clear {
+  margin-left: auto;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 11px var(--space-3);
+  border-top: 1px solid var(--line);
+  background: var(--surface-2);
+}
+
+.pager__range {
+  flex-grow: 1;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+/* Below the working width the rail can no longer sit beside the list, so it
+ * becomes a layer over it rather than being squeezed out of legibility. */
+@media (max-width: 1180px) {
+  .page {
+    position: relative;
+  }
+
+  .page__rail {
+    position: fixed;
+    inset: 56px 0 0 auto;
+    z-index: 20;
+    width: min(var(--rail-width), 100vw);
+    overflow-y: auto;
+    background: var(--paper);
+    border-left: 1px solid var(--line-2);
+    padding: var(--space-3);
+  }
+}

@@ -1,0 +1,84 @@
+name: Backend
+
+# Lint, type-check and test the Django backend.
+#
+# NOTE: this job makes NO third-party network calls. ZapSign, OpenAI, PDF fetching
+# and the outbound webhook are all mocked (respx / fake gateways) per Constitution
+# Principle II — "CI never calls third parties". The only service dependency is the
+# ephemeral PostgreSQL container below.
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: backend-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: ruff + mypy + pytest
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: backend
+
+    env:
+      POSTGRES_DB: zapsign_test
+      POSTGRES_USER: zapsign
+      POSTGRES_PASSWORD: zapsign
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+      DATABASE_URL: postgres://zapsign:zapsign@localhost:5432/zapsign_test
+      DJANGO_SECRET_KEY: ci-insecure-secret-key-not-used-outside-ci
+      DJANGO_SETTINGS_MODULE: config.settings.local
+      DJANGO_DEBUG: "false"
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
+      # Providers are faked/mocked in tests — no credentials, no outbound traffic.
+      ZAPSIGN_USE_FAKE: "true"
+      AI_USE_FAKE: "true"
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: zapsign_test
+          POSTGRES_USER: zapsign
+          POSTGRES_PASSWORD: zapsign
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U zapsign -d zapsign_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Lint (ruff check)
+        run: ruff check .
+
+      - name: Format check (ruff format)
+        run: ruff format --check .
+
+      - name: Type check (mypy)
+        run: mypy .
+
+      - name: Tests + coverage gate
+        run: pytest --cov --cov-report=term-missing --cov-fail-under=80

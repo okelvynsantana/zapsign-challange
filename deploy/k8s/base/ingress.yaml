@@ -1,0 +1,37 @@
+# Single host, two prefixes. `/api` is listed first: the ingress-nginx controller
+# matches the longest prefix, but keeping the more specific rule first also keeps
+# the intent obvious for controllers that evaluate rules in order.
+#
+# For local clusters add to /etc/hosts:  127.0.0.1  zapsign.local
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: zapsign
+  labels:
+    app.kubernetes.io/name: zapsign
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 10m
+    # AI analysis runs synchronously inside the create/re-analyze request
+    # (default timeout 15s) — give the upstream room beyond that.
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: zapsign.local
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 8000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80

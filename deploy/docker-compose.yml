@@ -1,0 +1,149 @@
+# Local one-command stack: postgres + one-shot migrate + backend + frontend.
+#
+#   cp deploy/.env.example deploy/.env   # then fill DJANGO_SECRET_KEY / SEED_PASSWORD
+#   docker compose -f deploy/docker-compose.yml up --build
+#
+#   SPA      -> http://localhost:4200
+#   API      -> http://localhost:8000/api/
+#   Health   -> http://localhost:8000/api/health/
+#
+# Compose v2 — no top-level `version:` key (it is obsolete and warns).
+# NOTE: this file lives in deploy/, so the build context is the repository root (`..`).
+# The root .dockerignore therefore applies to every build here.
+
+name: zapsign
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL 16 — system of record.
+  # ---------------------------------------------------------------------------
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-zapsign}
+      POSTGRES_USER: ${POSTGRES_USER:-zapsign}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-zapsign}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # Reachable as `db:5432` on appnet. The host mapping is a developer convenience
+    # only (5433 to avoid clashing with a locally installed PostgreSQL).
+    expose:
+      - "5432"
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U $${POSTGRES_USER:-zapsign} -d $${POSTGRES_DB:-zapsign}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    networks:
+      - appnet
+
+  # ---------------------------------------------------------------------------
+  # One-shot job: apply migrations, then seed the internal manager user.
+  # `backend` waits for this to complete successfully before starting.
+  # ---------------------------------------------------------------------------
+  migrate:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    image: zapsign-backend:local
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DJANGO_SETTINGS_MODULE: ${DJANGO_SETTINGS_MODULE:-config.settings.prod}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+    command:
+      - sh
+      - -c
+      - "python manage.py migrate --noinput && python manage.py seed_user"
+    networks:
+      - appnet
+
+  # ---------------------------------------------------------------------------
+  # Django + DRF served by gunicorn on 8000 (non-root, uid 10001).
+  # ---------------------------------------------------------------------------
+  backend:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    image: zapsign-backend:local
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    env_file:
+      - .env
+    environment:
+      DJANGO_SETTINGS_MODULE: ${DJANGO_SETTINGS_MODULE:-config.settings.prod}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,backend}
+      DJANGO_CORS_ALLOWED_ORIGINS: ${DJANGO_CORS_ALLOWED_ORIGINS:-http://localhost:4200}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8000}
+    ports:
+      - "8000:8000"
+    healthcheck:
+      # `/api/health/` is unauthenticated so probes need no app credentials.
+      test:
+        ["CMD-SHELL", "curl -fsS http://localhost:8000/api/health/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - appnet
+
+  # ---------------------------------------------------------------------------
+  # Angular SPA built to static files and served by nginx on 8080 (non-root).
+  # Published on the familiar Angular dev port 4200.
+  # ---------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ..
+      dockerfile: frontend/Dockerfile
+      args:
+        FRONTEND_API_BASE_URL: ${FRONTEND_API_BASE_URL:-http://localhost:8000/api}
+    image: zapsign-frontend:local
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      FRONTEND_API_BASE_URL: ${FRONTEND_API_BASE_URL:-http://localhost:8000/api}
+    ports:
+      - "4200:8080"
+    healthcheck:
+      # Tries busybox wget (alpine nginx) first, then curl — whichever the base image ships.
+      test:
+        [
+          "CMD-SHELL",
+          "wget -q -O /dev/null http://127.0.0.1:8080/ || curl -fsS http://127.0.0.1:8080/ >/dev/null || exit 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - appnet
+
+volumes:
+  pgdata:
+    driver: local
+
+networks:
+  appnet:
+    driver: bridge

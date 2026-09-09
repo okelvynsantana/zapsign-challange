@@ -1,0 +1,136 @@
+<div class="page">
+  <section class="page__list">
+    <header class="page__head">
+      <h1 class="t-section">Documentos</h1>
+      <span class="page__count mono">{{ total() }} registros</span>
+      <button type="button" class="btn btn--primary" (click)="startCreate()">
+        <app-icon name="plus" />Novo documento
+      </button>
+    </header>
+
+    <div class="filters">
+      <label class="filters__item">
+        <span class="eyebrow">hand-off</span>
+        <select
+          class="sel"
+          [value]="filters().provider_status ?? ''"
+          (change)="applyFilter('provider_status', $any($event.target).value)"
+        >
+          <option value="">Todos</option>
+          @for (status of providerStatuses; track status) {
+            <!-- The provider's own vocabulary, never translated (FR-003). -->
+            <option [value]="status">{{ status }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="filters__item">
+        <span class="eyebrow">assinatura</span>
+        <select
+          class="sel"
+          [value]="filters().status ?? ''"
+          (change)="applyFilter('status', $any($event.target).value)"
+        >
+          <option value="">Todas</option>
+          @for (status of signatureOptions(); track status) {
+            <option [value]="status">{{ status }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="filters__item">
+        <span class="eyebrow">organização</span>
+        <select
+          class="sel"
+          [value]="filters().company ?? ''"
+          (change)="applyFilter('company', $any($event.target).value)"
+        >
+          <option value="">Todas</option>
+          @for (company of companyOptions(); track company.id) {
+            <option [value]="company.id">{{ company.name }}</option>
+          }
+        </select>
+      </label>
+
+      @if (hasFilters()) {
+        <button type="button" class="btn btn--sm filters__clear" (click)="clearFilters()">
+          Limpar filtros
+        </button>
+      }
+    </div>
+
+    <app-error-message [error]="error()" />
+
+    @if (loading()) {
+      <p class="page__loading t-support">Carregando…</p>
+    } @else if (items().length === 0) {
+      <div class="card" data-testid="document-empty">
+        <app-empty-state
+          title="Nenhum documento ainda"
+          description="Crie o primeiro documento ao lado para gravá-lo aqui e enviá-lo para assinatura. A análise de conteúdo roda logo depois, no mesmo fluxo."
+        />
+      </div>
+    } @else {
+      <div class="card page__table">
+        <app-documents-table
+          [documents]="items()"
+          [selectedId]="selected()?.id ?? null"
+          [companyNames]="companyNames()"
+          [canResync]="canResyncFn"
+          (selected)="select($event)"
+          (edited)="edit($event)"
+          (removed)="askRemove($event)"
+          (resynced)="resync($event)"
+        />
+        <footer class="pager">
+          <span class="pager__range mono">{{ range() }}</span>
+          <button type="button" class="btn btn--sm" [disabled]="!hasPrevious()" (click)="goToPage(-1)">
+            Anterior
+          </button>
+          <button type="button" class="btn btn--sm" [disabled]="!hasNext()" (click)="goToPage(1)">
+            Próxima
+          </button>
+        </footer>
+      </div>
+    }
+  </section>
+
+  @switch (railMode()) {
+    @case ('detail') {
+      <div class="page__rail">
+        <app-document-detail-rail
+          [document]="selected()!"
+          [companyName]="companyNames()[selected()!.company] ?? ''"
+          (closed)="closeRail()"
+          (edited)="edit($event)"
+          (analyzed)="onAnalyzed($event)"
+        />
+      </div>
+    }
+    @case ('form') {
+      <div class="page__rail">
+        <app-document-form
+          [form]="form"
+          [companies]="companyOptions()"
+          [editing]="isEditing()"
+          [makeRow]="makeRow"
+          (submitted)="submit()"
+          (cancelled)="cancelEdit()"
+        />
+      </div>
+    }
+  }
+</div>
+
+<app-confirm-dialog
+  title="Excluir documento?"
+  [message]="
+    'O documento “' +
+    (pendingRemoval()?.name ?? '') +
+    '” e suas análises serão removidos definitivamente. A assinatura já enviada à ZapSign não é cancelada por aqui.'
+  "
+  confirmLabel="Excluir"
+  [destructive]="true"
+  (confirmed)="confirmRemoval()"
+  (cancelled)="pendingRemoval.set(null)"
+/>

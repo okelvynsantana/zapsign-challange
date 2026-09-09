@@ -78,7 +78,7 @@ describe('ReportsComponent', () => {
       }),
     );
 
-    expect(fixture.nativeElement.textContent).toContain('No documents yet.');
+    expect(fixture.nativeElement.textContent).toContain('Nenhum documento ainda.');
     expect(fixture.nativeElement.querySelector('[data-testid="report-risk-insights"]')).toBeNull();
     expect(fixture.componentInstance.error()).toBeNull();
   });

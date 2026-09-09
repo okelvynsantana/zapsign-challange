@@ -1,0 +1,57 @@
+.docf {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.docf__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--line);
+}
+
+.docf__title {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  flex-grow: 1;
+  min-width: 0;
+}
+
+.docf__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.docf__optional {
+  font-weight: 400;
+  color: var(--ink-3);
+}
+
+.docf__foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--line);
+}
+
+.docf__acts {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.docf__submit {
+  flex-grow: 1;
+  height: 36px;
+}
+
+.docf__note {
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--ink-3);
+}

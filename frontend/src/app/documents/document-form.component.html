@@ -1,0 +1,74 @@
+<form class="card docf" [formGroup]="form()" (ngSubmit)="submitted.emit()">
+  <header class="docf__head">
+    <div class="docf__title">
+      <p class="eyebrow">{{ editing() ? 'Editando' : 'Novo' }}</p>
+      <h2 class="t-panel">{{ editing() ? 'Editar documento' : 'Criar documento' }}</h2>
+    </div>
+    <button
+      type="button"
+      class="btn btn--sm btn--icon"
+      aria-label="Fechar formulário"
+      (click)="cancelled.emit()"
+    >
+      <app-icon name="close" />
+    </button>
+  </header>
+
+  <div class="docf__body">
+    <label class="field">
+      <span class="field__label">Organização</span>
+      <select class="sel" formControlName="company" data-testid="document-company">
+        <option value="">Selecione…</option>
+        @for (company of companies(); track company.id) {
+          <option [value]="company.id">{{ company.name }}</option>
+        }
+      </select>
+    </label>
+
+    <label class="field">
+      <span class="field__label">Nome do documento</span>
+      <input class="inp" type="text" formControlName="name" data-testid="document-name" />
+    </label>
+
+    <label class="field">
+      <span class="field__label">Link do PDF</span>
+      <input class="inp" type="url" formControlName="pdf_url" data-testid="document-pdf" />
+      <span class="field__hint">
+        Precisa ser um endereço http(s) que a ZapSign e a análise consigam baixar.
+      </span>
+    </label>
+
+    <label class="field">
+      <span class="field__label">
+        Referência externa <span class="docf__optional">(opcional)</span>
+      </span>
+      <input class="inp" type="text" formControlName="external_id" placeholder="ex.: NDA-0219" />
+    </label>
+
+    <app-signer-rows [parent]="form()" [makeRow]="makeRow()" />
+  </div>
+
+  <footer class="docf__foot">
+    <div class="docf__acts">
+      @if (editing()) {
+        <button type="button" class="btn" (click)="cancelled.emit()">Cancelar</button>
+      }
+      <button
+        type="submit"
+        class="btn btn--primary docf__submit"
+        [disabled]="invalid()"
+        data-testid="document-submit"
+      >
+        {{ editing() ? 'Salvar alterações' : 'Criar e enviar para assinatura' }}
+      </button>
+    </div>
+    @if (!editing()) {
+      <!-- The order is the resilience story: the record exists before anyone
+           calls the provider, so a refusal costs a retry and never a document. -->
+      <p class="docf__note">
+        O documento é gravado antes do envio. Se a ZapSign recusar, ele aparece na lista como
+        <span class="mono">failed</span>, com o motivo e um botão para reenviar.
+      </p>
+    }
+  </footer>
+</form>

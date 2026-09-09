@@ -23,6 +23,9 @@ const analysis = (overrides: Partial<DocumentAnalysis> = {}): DocumentAnalysis =
   ...overrides,
 });
 
+const failedRun = (reason: string): DocumentAnalysis =>
+  analysis({ state: 'failed', summary: '', insights: [], missing_topics: [], error_reason: reason });
+
 const doc = (latest: DocumentAnalysis | null): Document => ({
   id: 'd1',
   company: 'c1',
@@ -54,6 +57,12 @@ describe('AnalysisPanelComponent', () => {
   let fixture: ComponentFixture<HostComponent>;
   let http: HttpTestingController;
 
+  const el = (testid: string): HTMLElement | null =>
+    fixture.nativeElement.querySelector(`[data-testid="${testid}"]`);
+  const all = (selector: string): HTMLElement[] =>
+    Array.from(fixture.nativeElement.querySelectorAll(selector));
+  const action = (): HTMLButtonElement => el('analysis-run') as HTMLButtonElement;
+
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [HostComponent],
@@ -68,19 +77,13 @@ describe('AnalysisPanelComponent', () => {
   afterEach(() => http.verify());
 
   it('renders the summary, missing topics and insights of the latest run', () => {
-    const panel = fixture.nativeElement.querySelector('[data-testid="analysis-latest"]');
-
-    expect(panel.textContent).toContain('prestação de serviços');
-    expect(
-      fixture.nativeElement.querySelectorAll('[data-testid="analysis-missing"] li'),
-    ).toHaveLength(2);
-    expect(
-      fixture.nativeElement.querySelectorAll('[data-testid="analysis-insights"] li'),
-    ).toHaveLength(2);
+    expect(el('analysis-latest')!.textContent).toContain('prestação de serviços');
+    expect(all('[data-testid="analysis-missing"] li')).toHaveLength(2);
+    expect(all('[data-testid="analysis-insights"] app-insight-item')).toHaveLength(2);
   });
 
   it('flags risk insights', () => {
-    expect(fixture.nativeElement.querySelectorAll('[data-testid="analysis-risk"]')).toHaveLength(1);
+    expect(all('[data-testid="analysis-risk"]')).toHaveLength(1);
   });
 
   it('names how the analysis was produced', () => {
@@ -89,26 +92,24 @@ describe('AnalysisPanelComponent', () => {
   });
 
   it('shows a failed run as retryable and says the document is unaffected', () => {
-    fixture.componentInstance.document.set(
-      doc(analysis({ state: 'failed', summary: '', error_reason: 'no_text' })),
-    );
+    fixture.componentInstance.document.set(doc(failedRun('no_text')));
     fixture.detectChanges();
 
-    const failed = fixture.nativeElement.querySelector('[data-testid="analysis-failed"]');
+    const failed = el('analysis-failed')!;
     expect(failed.textContent).toContain('no_text');
-    expect(failed.textContent).toContain('document is unaffected');
-    expect(fixture.nativeElement.querySelector('[data-testid="analysis-latest"]')).toBeNull();
+    expect(failed.textContent).toContain('não foram afetados');
+    expect(el('analysis-latest')).toBeNull();
   });
 
   it('shows an empty state before the first run', () => {
     fixture.componentInstance.document.set(doc(null));
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelector('[data-testid="analysis-empty"]')).not.toBeNull();
+    expect(el('analysis-empty')).not.toBeNull();
   });
 
   it('re-analyzing posts once and notifies the parent', () => {
-    fixture.nativeElement.querySelector('[data-testid="analysis-run"]').click();
+    action().click();
 
     const request = http.expectOne(
       (r) => r.method === 'POST' && r.url.endsWith('/documents/d1/analyze/'),
@@ -120,7 +121,7 @@ describe('AnalysisPanelComponent', () => {
   });
 
   it('loads the history only when it is opened', () => {
-    fixture.nativeElement.querySelector('[data-testid="analysis-history-toggle"]').click();
+    el('analysis-history-toggle')!.click();
     fixture.detectChanges();
 
     http
@@ -133,8 +134,163 @@ describe('AnalysisPanelComponent', () => {
       });
     fixture.detectChanges();
 
-    expect(
-      fixture.nativeElement.querySelectorAll('[data-testid="analysis-history"] li'),
-    ).toHaveLength(2);
+    expect(all('[data-testid="analysis-history"] app-analysis-run-item')).toHaveLength(2);
+  });
+
+  // --- the four states (data-model §4, FR-010) -----------------------------
+
+  describe('state resolution', () => {
+    it('resolves never-run from a null latest_analysis', () => {
+      fixture.componentInstance.document.set(doc(null));
+      fixture.detectChanges();
+
+      expect(el('analysis-empty')).not.toBeNull();
+      expect(el('analysis-latest')).toBeNull();
+      expect(el('analysis-failed')).toBeNull();
+      expect(el('analysis-progress')).toBeNull();
+      expect(action().textContent).toContain('Analisar agora');
+    });
+
+    it('resolves in-progress from the in-flight flag, whatever the stored run says', () => {
+      action().click();
+      fixture.detectChanges();
+
+      // The succeeded run is still on the document, but the request in flight
+      // is the news — the panel must not read as idle.
+      expect(el('analysis-progress')).not.toBeNull();
+      expect(el('analysis-latest')).toBeNull();
+      expect(action().disabled).toBe(true);
+
+      http.expectOne((r) => r.method === 'POST').flush(analysis({ id: 'a2' }));
+    });
+
+    it('states the 15 s ceiling while the analysis runs, so it never looks frozen', () => {
+      action().click();
+      fixture.detectChanges();
+
+      const progress = el('analysis-progress')!;
+      expect(progress.textContent).toContain('15 s');
+      expect(progress.textContent).toContain('AI_TIMEOUT_SECONDS');
+
+      http.expectOne((r) => r.method === 'POST').flush(analysis({ id: 'a2' }));
+    });
+
+    it('resolves produced from a succeeded latest run, with re-running as a secondary action', () => {
+      expect(el('analysis-latest')).not.toBeNull();
+      expect(el('analysis-failed')).toBeNull();
+      expect(action().textContent).toContain('Reanalisar');
+      expect(action().classList).not.toContain('btn--primary');
+    });
+
+    it('resolves failed from a failed latest run and makes the retry the primary action', () => {
+      fixture.componentInstance.document.set(doc(failedRun('timeout')));
+      fixture.detectChanges();
+
+      expect(el('analysis-failed')).not.toBeNull();
+      expect(el('analysis-latest')).toBeNull();
+      expect(action().classList).toContain('btn--primary');
+    });
+  });
+
+  // --- failure reporting (FR-009) ------------------------------------------
+
+  describe('failure reporting', () => {
+    it('keeps the recorded reason verbatim in mono', () => {
+      fixture.componentInstance.document.set(doc(failedRun('no_text')));
+      fixture.detectChanges();
+
+      const verbatim = all('[data-testid="analysis-failed"] .mono').map((n) => n.textContent);
+      expect(verbatim.some((text) => text === 'no_text')).toBe(true);
+      // The state value is the backend's own word and is never translated.
+      expect(el('analysis-failed')!.querySelector('.badge--bad')!.textContent).toBe('failed');
+    });
+
+    it.each([
+      ['unreachable', 'não pôde ser baixado'],
+      ['not_pdf', 'não é um PDF'],
+      ['too_large', 'limite de tamanho'],
+      ['no_text', 'camada de texto'],
+      ['timeout', 'tempo limite'],
+    ])('explains %s in plain Portuguese', (reason, explanation) => {
+      fixture.componentInstance.document.set(doc(failedRun(reason)));
+      fixture.detectChanges();
+
+      const failed = el('analysis-failed')!;
+      expect(failed.textContent).toContain(reason);
+      expect(failed.textContent).toContain(explanation);
+    });
+
+    it('stays readable when the backend records a reason we do not know yet', () => {
+      fixture.componentInstance.document.set(doc(failedRun('quota_exhausted')));
+      fixture.detectChanges();
+
+      const failed = el('analysis-failed')!;
+      expect(failed.textContent).toContain('quota_exhausted');
+      expect(failed.textContent).toContain('não foram afetados');
+    });
+  });
+
+  // --- history (FR-011) -----------------------------------------------------
+
+  describe('history', () => {
+    it('appends a retry rather than replacing the previous run', () => {
+      el('analysis-history-toggle')!.click();
+      fixture.detectChanges();
+      http.expectOne((r) => r.method === 'GET').flush({
+        count: 1,
+        next: null,
+        previous: null,
+        results: [analysis({ id: 'a1' })],
+      });
+      fixture.detectChanges();
+
+      action().click();
+      http.expectOne((r) => r.method === 'POST').flush(analysis({ id: 'a2' }));
+      fixture.detectChanges();
+
+      const rows = all('[data-testid="analysis-history"] app-analysis-run-item');
+      expect(rows).toHaveLength(2);
+      expect(rows[0].textContent).toContain('succeeded');
+    });
+
+    it('marks the run the panel is currently showing', () => {
+      el('analysis-history-toggle')!.click();
+      fixture.detectChanges();
+      http.expectOne((r) => r.method === 'GET').flush({
+        count: 2,
+        next: null,
+        previous: null,
+        results: [analysis({ id: 'a1' }), analysis({ id: 'a0' })],
+      });
+      fixture.detectChanges();
+
+      const rows = all('[data-testid="analysis-history"] app-analysis-run-item');
+      expect(rows[0].textContent).toContain('atual');
+      expect(rows[1].textContent).not.toContain('atual');
+    });
+
+    it('hides again on a second toggle without re-fetching', () => {
+      el('analysis-history-toggle')!.click();
+      fixture.detectChanges();
+      http.expectOne((r) => r.method === 'GET').flush({
+        count: 0,
+        next: null,
+        previous: null,
+        results: [],
+      });
+      fixture.detectChanges();
+
+      el('analysis-history-toggle')!.click();
+      fixture.detectChanges();
+
+      expect(el('analysis-history')).toBeNull();
+    });
+  });
+
+  it('presents the run date in the reader’s convention, not as stored (FR-021)', () => {
+    const text = el('analysis-latest')!.textContent ?? '';
+
+    expect(text).not.toContain('2026-09-03T12:00:00Z');
+    expect(text).toMatch(/\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}/);
   });
 });

@@ -45,4 +45,6 @@ export interface DocumentFilters {
   provider_status?: ProviderStatus;
   status?: string;
   company?: string;
+  /** 1-based; the list endpoint paginates and the SPA walks it (FR-016). */
+  page?: number;
 }

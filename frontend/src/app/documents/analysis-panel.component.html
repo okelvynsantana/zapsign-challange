@@ -1,65 +1,140 @@
-<section class="analysis" data-testid="analysis-panel">
-  <header>
-    <h4>AI analysis</h4>
-    <button type="button" (click)="analyze()" [disabled]="pending()" data-testid="analysis-run">
-      {{ pending() ? 'Analyzing…' : 'Re-analyze' }}
-    </button>
-    <button type="button" (click)="toggleHistory()" data-testid="analysis-history-toggle">
-      {{ historyVisible() ? 'Hide history' : 'Show history' }}
-    </button>
+<section class="card panel" data-testid="analysis-panel">
+  <header class="panel__head">
+    <h4 class="t-panel">Análise por IA</h4>
+
+    <div class="panel__actions">
+      <button
+        type="button"
+        class="btn btn--sm"
+        [class.btn--primary]="actionIsPrimary()"
+        [disabled]="pending()"
+        (click)="analyze()"
+        data-testid="analysis-run"
+      >
+        @if (state() === 'failed') {
+          <app-icon name="retry" />
+        }
+        {{ actionLabel() }}
+      </button>
+
+      <button
+        type="button"
+        class="btn btn--sm"
+        [attr.aria-expanded]="historyVisible()"
+        (click)="toggleHistory()"
+        data-testid="analysis-history-toggle"
+      >
+        {{ historyVisible() ? 'Ocultar histórico' : 'Ver histórico' }}
+      </button>
+    </div>
   </header>
 
   <app-error-message [error]="error()" />
 
-  @if (document().latest_analysis; as analysis) {
-    @if (analysis.state === 'failed') {
-      <p class="error" data-testid="analysis-failed">
-        Analysis failed: {{ analysis.error_reason }}. The document is unaffected — you can retry.
-      </p>
-    } @else {
-      <article data-testid="analysis-latest">
-        <p class="summary">{{ analysis.summary || 'No summary — produced by the rule-based pass.' }}</p>
-
-        <h5>Missing topics</h5>
-        @if (analysis.missing_topics.length === 0) {
-          <p>Nothing obviously missing.</p>
-        } @else {
-          <ul data-testid="analysis-missing">
-            @for (topic of analysis.missing_topics; track topic) {
-              <li>{{ topic }}</li>
-            }
-          </ul>
-        }
-
-        <h5>Insights</h5>
-        <ul data-testid="analysis-insights">
-          @for (insight of analysis.insights; track insight.text) {
-            <li [class.risk]="insight.risk">
-              @if (insight.risk) {
-                <span class="risk-flag" data-testid="analysis-risk">Risk</span>
-              }
-              {{ insight.text }}
-            </li>
-          }
-        </ul>
-
-        <footer>
-          <small>Produced by {{ analysis.source }}{{ analysis.model ? ' (' + analysis.model + ')' : '' }}</small>
-        </footer>
-      </article>
+  @switch (state()) {
+    @case ('in-progress') {
+      <app-progress-step
+        label="Analisando o documento…"
+        hint="Baixamos o PDF, extraímos o texto e consultamos o modelo. O teto é de 15 s (AI_TIMEOUT_SECONDS) — passando disso, a execução é registrada como falha e o documento segue intacto."
+        data-testid="analysis-progress"
+      />
     }
-  } @else {
-    <p data-testid="analysis-empty">No analysis yet.</p>
+
+    @case ('failed') {
+      @if (latest(); as run) {
+        <div class="fail" data-testid="analysis-failed">
+          <p class="fail__head">
+            <app-icon name="alert" [size]="14" />
+            <span class="badge badge--bad">{{ run.state }}</span>
+            @if (run.error_reason) {
+              <span class="mono t-support">{{ run.error_reason }}</span>
+            }
+          </p>
+
+          <p class="t-body">{{ failureExplanation() }}</p>
+
+          <!-- The whole point of the state: an analysis failure costs nothing
+               and is recoverable, so the guarantee is stated, not implied. -->
+          <p class="t-body">
+            O documento e o envio para assinatura não foram afetados — nada foi perdido. Repetir a
+            análise cria uma nova execução.
+          </p>
+
+          <p class="mono t-support">{{ run.created_at | date: 'dd/MM/yyyy HH:mm' }}</p>
+        </div>
+      }
+    }
+
+    @case ('produced') {
+      @if (latest(); as run) {
+        <article class="state" data-testid="analysis-latest">
+          <p class="t-body">
+            {{ run.summary || 'Sem resumo — execução produzida apenas pela passagem de regras.' }}
+          </p>
+
+          <section class="group">
+            <h5 class="eyebrow">Tópicos faltantes</h5>
+            @if (run.missing_topics.length === 0) {
+              <p class="t-support">Nada obviamente ausente.</p>
+            } @else {
+              <ul class="chips" data-testid="analysis-missing">
+                @for (topic of run.missing_topics; track topic) {
+                  <li class="chip">{{ topic }}</li>
+                }
+              </ul>
+            }
+          </section>
+
+          <section class="group">
+            <h5 class="eyebrow">Insights</h5>
+            @if (run.insights.length === 0) {
+              <p class="t-support">Nenhum ponto levantado.</p>
+            } @else {
+              <ul class="insights" role="list" data-testid="analysis-insights">
+                @for (insight of run.insights; track insight.text) {
+                  <app-insight-item
+                    [insight]="insight"
+                    [attr.data-testid]="insight.risk ? 'analysis-risk' : null"
+                  />
+                }
+              </ul>
+            }
+          </section>
+
+          <footer class="prov">
+            <span class="eyebrow">produzido por</span>
+            <span class="mono t-support">{{ run.source }}</span>
+            @if (run.model) {
+              <span class="mono t-support">{{ run.model }}</span>
+            }
+            <span class="mono t-support">{{ run.created_at | date: 'dd/MM/yyyy HH:mm' }}</span>
+          </footer>
+        </article>
+      }
+    }
+
+    @default {
+      <div class="state" data-testid="analysis-empty">
+        <p class="t-body">Este documento ainda não foi analisado.</p>
+        <p class="t-support">
+          A análise lê o PDF e devolve um resumo, os tópicos que faltam e os pontos de risco. Ela não
+          altera o documento nem o envio para assinatura.
+        </p>
+      </div>
+    }
   }
 
   @if (historyVisible()) {
-    <ol data-testid="analysis-history">
-      @for (run of history(); track run.id) {
-        <li>
-          {{ run.created_at }} — {{ run.state }} ({{ run.source }}),
-          {{ riskCount(run) }} risk insight(s)
-        </li>
-      }
-    </ol>
+    <section class="group">
+      <h5 class="eyebrow">Histórico</h5>
+      <!-- Append-only: a retry insere uma linha, nunca substitui outra (FR-011). -->
+      <ol class="history" role="list" data-testid="analysis-history">
+        @for (run of history(); track run.id) {
+          <app-analysis-run-item [run]="run" [current]="run.id === latest()?.id" />
+        } @empty {
+          <li class="t-support">Nenhuma execução registrada até agora.</li>
+        }
+      </ol>
+    </section>
   }
 </section>

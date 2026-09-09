@@ -1,0 +1,108 @@
+<div style="display:flex;gap:20px;padding:22px 24px 26px;align-items:flex-start">
+
+  <section style="display:flex;flex-direction:column;gap:14px;flex-grow:1;min-width:0">
+    <div style="display:flex;align-items:center;gap:14px">
+      <h1 style="font-size:20px">Documentos</h1>
+      <span class="mono" style="font-size:11.5px;color:var(--ink-3);flex-grow:1">0 registros</span>
+      <button class="btn btn-p" type="button">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 1.8v8.4M1.8 6h8.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        Novo documento
+      </button>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:8px;opacity:.5">
+      <span class="sel"><span class="eyebrow">hand-off</span> Todos
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2.4 4l2.6 2.6L7.6 4" stroke="#8A857D" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </span>
+      <span class="sel"><span class="eyebrow">assinatura</span> Todas
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2.4 4l2.6 2.6L7.6 4" stroke="#8A857D" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </span>
+      <span class="sel"><span class="eyebrow">organização</span> Todas
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2.4 4l2.6 2.6L7.6 4" stroke="#8A857D" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </span>
+    </div>
+
+    <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:74px 40px;text-align:center">
+      <svg width="46" height="46" viewBox="0 0 46 46" fill="none" aria-hidden="true">
+        <path d="M12.5 6.5h13.2L34.5 15v24.5a1 1 0 0 1-1 1h-21a1 1 0 0 1-1-1V7.5a1 1 0 0 1 1-1z" stroke="#CBC7BE" stroke-width="1.6" stroke-linejoin="round"/>
+        <path d="M25.5 6.8V15h8.6" stroke="#CBC7BE" stroke-width="1.6" stroke-linejoin="round"/>
+        <path d="M17.5 23.5h11M17.5 29h7.5" stroke="#CBC7BE" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+      <div style="display:flex;flex-direction:column;gap:7px;max-width:400px">
+        <h2 style="font-size:15px">Nenhum documento ainda</h2>
+        <p style="font-size:12.5px;line-height:1.6;color:var(--ink-2)">Preencha o formulário ao lado para gravar o primeiro documento e enviá-lo para assinatura. A análise de IA roda logo depois, no mesmo fluxo.</p>
+      </div>
+      <span class="mono" style="font-size:10.5px;color:var(--ink-3)">automações externas criam documentos por <span style="color:var(--ink-2)">POST /api/automation/documents/</span></span>
+    </div>
+  </section>
+
+  <aside class="card" style="width:452px;flex-shrink:0;overflow:hidden">
+    <div style="display:flex;align-items:center;gap:10px;padding:15px 18px;border-bottom:1px solid var(--line)">
+      <span style="display:flex;flex-direction:column;gap:7px;flex-grow:1">
+        <span class="eyebrow">Novo</span>
+        <h2 style="font-size:15px">Criar documento</h2>
+      </span>
+      <button class="btn btn-s btn-i" type="button" aria-label="Fechar"><svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M3.3 3.3 8.7 8.7M8.7 3.3 3.3 8.7" stroke="#5C5852" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:15px;padding:16px 18px">
+      <label class="fld">
+        <span>Organização</span>
+        <span class="sel" style="height:34px">Vertax Tecnologia
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2.4 4l2.6 2.6L7.6 4" stroke="#8A857D" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+      </label>
+
+      <label class="fld">
+        <span>Nome do documento</span>
+        <span class="inp foc">Termo de confidencialidade — Bruna Sales</span>
+      </label>
+
+      <label class="fld">
+        <span>Link do PDF</span>
+        <span class="inp mono" style="font-size:11.5px;color:var(--ink-2)">https://arquivos.vertax.com.br/nda/bru…</span>
+        <small>Precisa ser um endereço http(s) acessível pela ZapSign e por nós.</small>
+      </label>
+
+      <label class="fld">
+        <span>Referência externa <span style="color:var(--ink-3);font-weight:400">(opcional)</span></span>
+        <span class="inp ph">ex.: NDA-0219</span>
+      </label>
+
+      <div style="display:flex;flex-direction:column;gap:10px;padding-top:15px;border-top:1px solid var(--line)">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="eyebrow" style="flex-grow:1">Signatários · 2</span>
+          <button class="btn btn-s" type="button">
+            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            Adicionar
+          </button>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:8px;background:var(--surface-2);border:1px solid var(--line);border-radius:5px;padding:11px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="mono" style="font-size:10px;letter-spacing:.11em;color:var(--ink-3);flex-grow:1">01</span>
+            <button class="btn btn-s btn-i" type="button" aria-label="Remover signatário"><svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2.6 6h6.8" stroke="#5C5852" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+          </div>
+          <span class="inp" style="background:var(--surface)">Bruna Sales</span>
+          <span class="inp mono" style="background:var(--surface);font-size:11.5px">bruna.sales@vertax.com.br</span>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:8px;background:var(--surface-2);border:1px solid var(--line);border-radius:5px;padding:11px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="mono" style="font-size:10px;letter-spacing:.11em;color:var(--ink-3);flex-grow:1">02</span>
+            <button class="btn btn-s btn-i" type="button" aria-label="Remover signatário"><svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2.6 6h6.8" stroke="#5C5852" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+          </div>
+          <span class="inp" style="background:var(--surface)">Rafael Prado</span>
+          <span class="inp bad" style="background:var(--surface)">bruna.sales@vertax.com.br</span>
+          <small style="font:400 11px/1.35 'IBM Plex Sans',sans-serif;color:var(--bad-ink)">Este e-mail já está no documento. Cada signatário precisa de um endereço distinto.</small>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:9px;padding-top:14px;border-top:1px solid var(--line)">
+        <button class="btn" type="button" style="opacity:.55">Cancelar</button>
+        <button class="btn btn-p" type="button" style="flex-grow:1;height:36px">Criar e enviar para assinatura</button>
+      </div>
+      <p style="font-size:11px;line-height:1.55;color:var(--ink-3)">O documento é gravado antes do envio. Se a ZapSign recusar, ele aparece na lista como <span class="mono" style="color:var(--bad-ink)">failed</span>, com o motivo e um botão para reenviar.</p>
+    </div>
+  </aside>
+</div>

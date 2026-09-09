@@ -1,0 +1,204 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+  <style>
+    :root{
+      --paper:#FAF9F7;--surface:#FFFFFF;--surface-2:#F3F1ED;
+      --ink:#1A1917;--ink-2:#5C5852;--ink-3:#8A857D;
+      --line:#E3E0D9;--line-2:#CBC7BE;
+      --accent:#4B3FA6;--accent-ink:#372C86;--accent-soft:#EEEBFA;
+      --ok-ink:#1F5F43;--ok-bg:#E4F0EA;--ok-line:#B4D7C6;
+      --warn-ink:#7A5312;--warn-bg:#FBF0DC;--warn-line:#E9D2A2;
+      --bad-ink:#8C2B22;--bad-bg:#FBE9E6;--bad-line:#EFC1B8;
+      --mut-ink:#5C5852;--mut-bg:#EDEBE6;--mut-line:#D8D4CB;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--paper);color:var(--ink);font:400 13px/1.5 "IBM Plex Sans",system-ui,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;text-wrap:pretty}
+    a{color:#4B3FA6;text-decoration:none} a:hover{color:#372C86;text-decoration:underline}
+    h1,h2,h3,h4,h5{margin:0;font-weight:600;letter-spacing:-0.012em}
+    p{margin:0}
+    ul,ol{margin:0;padding:0;list-style:none}
+    .mono{font-family:"IBM Plex Mono","SFMono-Regular",monospace}
+    .eyebrow{font:500 10px/1 "IBM Plex Mono",monospace;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3)}
+    .badge{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 8px;border-radius:3px;border:1px solid;font:500 11px/1 "IBM Plex Mono",monospace;letter-spacing:.01em;white-space:nowrap}
+    .b-pending{color:var(--mut-ink);background:var(--mut-bg);border-color:var(--mut-line)}
+    .b-ok{color:var(--ok-ink);background:var(--ok-bg);border-color:var(--ok-line)}
+    .b-bad{color:var(--bad-ink);background:var(--bad-bg);border-color:var(--bad-line)}
+    .b-risk{color:var(--warn-ink);background:var(--warn-bg);border-color:var(--warn-line)}
+    .sig{display:inline-flex;align-items:center;gap:7px;font:500 11px/1 "IBM Plex Mono",monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+    .sig i{width:7px;height:7px;border-radius:50%;display:block;border:1.5px solid var(--line-2);background:transparent}
+    .sig i.f{background:#3E8C68;border-color:#3E8C68}
+    .sig i.r{background:#B4483C;border-color:#B4483C}
+    .sig.none{color:var(--ink-3)}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:32px;padding:0 12px;border-radius:4px;border:1px solid var(--line-2);background:var(--surface);color:var(--ink);font:500 12.5px/1 "IBM Plex Sans",sans-serif;cursor:pointer}
+    .btn:hover{border-color:var(--ink-3)}
+    .btn-p{background:var(--accent);border-color:var(--accent);color:#fff}
+    .btn-p:hover{background:var(--accent-ink);border-color:var(--accent-ink)}
+    .btn-d{color:var(--bad-ink);border-color:var(--bad-line)}
+    .btn-d:hover{border-color:var(--bad-ink)}
+    .btn-s{height:26px;padding:0 9px;font-size:11.5px;gap:5px}
+    .btn-i{width:26px;padding:0}
+    .nav{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 11px;border-radius:4px;color:var(--ink-2);font-weight:500;font-size:13px}
+    .nav:hover{background:var(--surface-2);color:var(--ink);text-decoration:none}
+    .nav.on{background:var(--accent-soft);color:var(--accent-ink)}
+    .nav em{font-style:normal;font-family:"IBM Plex Mono",monospace;font-size:10.5px;font-weight:600;color:var(--warn-ink);background:var(--warn-bg);border:1px solid var(--warn-line);border-radius:99px;padding:1px 5px}
+    .fld{display:flex;flex-direction:column;gap:6px}
+    .fld > span{font:500 11.5px/1.2 "IBM Plex Sans",sans-serif;color:var(--ink-2)}
+    .fld > small{font:400 11px/1.35 "IBM Plex Sans",sans-serif;color:var(--ink-3)}
+    .inp{display:flex;align-items:center;height:34px;padding:0 10px;border:1px solid var(--line-2);border-radius:4px;background:var(--surface);font-size:13px;color:var(--ink)}
+    .inp.ph{color:var(--ink-3)}
+    .inp.bad{border-color:var(--bad-ink);background:#FFFCFB}
+    .inp.foc{border-color:var(--accent);box-shadow:0 0 0 3px rgba(75,63,166,.14)}
+    .sel{display:flex;align-items:center;justify-content:space-between;gap:10px;height:32px;padding:0 9px 0 11px;border:1px solid var(--line-2);border-radius:4px;background:var(--surface);font-size:12.5px;color:var(--ink)}
+    .sel.ph{color:var(--ink-3)}
+    .card{background:var(--surface);border:1px solid var(--line);border-radius:6px}
+    table{width:100%;border-collapse:collapse}
+    th{font:500 10px/1 "IBM Plex Mono",monospace;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);text-align:left;padding:0 14px 9px;border-bottom:1px solid var(--line-2)}
+    td{padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+    tr.on td{background:var(--accent-soft)}
+    .docname{font-weight:600;font-size:13px;color:var(--ink)}
+    .ref{font:400 10.5px/1 "IBM Plex Mono",monospace;color:var(--ink-3);letter-spacing:.02em}
+    .err{font:400 11.5px/1.4 "IBM Plex Sans",sans-serif;color:var(--bad-ink)}
+    .chip{display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:3px;border:1px dashed var(--line-2);background:var(--surface-2);font:400 11.5px/1 "IBM Plex Sans",sans-serif;color:var(--ink-2)}
+    .kv{display:grid;grid-template-columns:110px minmax(0,1fr);gap:9px 14px;align-items:baseline}
+    .kv dt{font:500 10px/1.4 "IBM Plex Mono",monospace;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3)}
+    .kv dd{margin:0;font-size:12.5px;color:var(--ink);overflow-wrap:anywhere}
+  </style>
+</helmet>
+<header style="display:flex;align-items:center;gap:26px;height:56px;padding:0 24px;background:var(--surface);border-bottom:1px solid var(--line)">
+  <div style="display:flex;align-items:center;gap:9px">
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+      <rect x="1.6" y="1.6" width="14.8" height="14.8" rx="3.2" stroke="#4B3FA6" stroke-width="1.5"/>
+      <path d="M5.2 9.3l2.5 2.5 5.1-5.4" stroke="#4B3FA6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span style="font-weight:600;font-size:13.5px;letter-spacing:-0.014em">Documentos &amp; Assinaturas</span>
+  </div>
+  <nav style="display:flex;align-items:center;gap:2px;flex-grow:1">
+    <a class="nav on" href="#">Documentos</a>
+    <a class="nav " href="#">Organização</a>
+    <a class="nav " href="#">Relatórios</a>
+    <a class="nav " href="#">Alertas <em>3</em></a>
+  </nav>
+  <div style="display:flex;align-items:center;gap:12px">
+    <span class="mono" style="font-size:11.5px;color:var(--ink-3)">m.andrade</span>
+    <button class="btn btn-s" type="button">Sair</button>
+  </div>
+</header>
+<div style="display:flex;gap:20px;padding:22px 24px 26px;align-items:flex-start">
+
+  <section style="display:flex;flex-direction:column;gap:14px;flex-grow:1;min-width:0">
+    <div style="display:flex;align-items:center;gap:14px">
+      <h1 style="font-size:20px">Documentos</h1>
+      <span class="mono" style="font-size:11.5px;color:var(--ink-3);flex-grow:1">0 registros</span>
+      <button class="btn btn-p" type="button">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 1.8v8.4M1.8 6h8.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        Novo documento
+      </button>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:8px;opacity:.5">
+      <span class="sel"><span class="eyebrow">hand-off</span> Todos
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2.4 4l2.6 2.6L7.6 4" stroke="#8A857D" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </span>
+      <span class="sel"><span class="eyebrow">assinatura</span> Todas
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2.4 4l2.6 2.6L7.6 4" stroke="#8A857D" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </span>
+      <span class="sel"><span class="eyebrow">organização</span> Todas
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2.4 4l2.6 2.6L7.6 4" stroke="#8A857D" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </span>
+    </div>
+
+    <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:74px 40px;text-align:center">
+      <svg width="46" height="46" viewBox="0 0 46 46" fill="none" aria-hidden="true">
+        <path d="M12.5 6.5h13.2L34.5 15v24.5a1 1 0 0 1-1 1h-21a1 1 0 0 1-1-1V7.5a1 1 0 0 1 1-1z" stroke="#CBC7BE" stroke-width="1.6" stroke-linejoin="round"/>
+        <path d="M25.5 6.8V15h8.6" stroke="#CBC7BE" stroke-width="1.6" stroke-linejoin="round"/>
+        <path d="M17.5 23.5h11M17.5 29h7.5" stroke="#CBC7BE" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+      <div style="display:flex;flex-direction:column;gap:7px;max-width:400px">
+        <h2 style="font-size:15px">Nenhum documento ainda</h2>
+        <p style="font-size:12.5px;line-height:1.6;color:var(--ink-2)">Preencha o formulário ao lado para gravar o primeiro documento e enviá-lo para assinatura. A análise de IA roda logo depois, no mesmo fluxo.</p>
+      </div>
+      <span class="mono" style="font-size:10.5px;color:var(--ink-3)">automações externas criam documentos por <span style="color:var(--ink-2)">POST /api/automation/documents/</span></span>
+    </div>
+  </section>
+
+  <aside class="card" style="width:452px;flex-shrink:0;overflow:hidden">
+    <div style="display:flex;align-items:center;gap:10px;padding:15px 18px;border-bottom:1px solid var(--line)">
+      <span style="display:flex;flex-direction:column;gap:7px;flex-grow:1">
+        <span class="eyebrow">Novo</span>
+        <h2 style="font-size:15px">Criar documento</h2>
+      </span>
+      <button class="btn btn-s btn-i" type="button" aria-label="Fechar"><svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M3.3 3.3 8.7 8.7M8.7 3.3 3.3 8.7" stroke="#5C5852" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:15px;padding:16px 18px">
+      <label class="fld">
+        <span>Organização</span>
+        <span class="sel" style="height:34px">Vertax Tecnologia
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2.4 4l2.6 2.6L7.6 4" stroke="#8A857D" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+      </label>
+
+      <label class="fld">
+        <span>Nome do documento</span>
+        <span class="inp foc">Termo de confidencialidade — Bruna Sales</span>
+      </label>
+
+      <label class="fld">
+        <span>Link do PDF</span>
+        <span class="inp mono" style="font-size:11.5px;color:var(--ink-2)">https://arquivos.vertax.com.br/nda/bru…</span>
+        <small>Precisa ser um endereço http(s) acessível pela ZapSign e por nós.</small>
+      </label>
+
+      <label class="fld">
+        <span>Referência externa <span style="color:var(--ink-3);font-weight:400">(opcional)</span></span>
+        <span class="inp ph">ex.: NDA-0219</span>
+      </label>
+
+      <div style="display:flex;flex-direction:column;gap:10px;padding-top:15px;border-top:1px solid var(--line)">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="eyebrow" style="flex-grow:1">Signatários · 2</span>
+          <button class="btn btn-s" type="button">
+            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            Adicionar
+          </button>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:8px;background:var(--surface-2);border:1px solid var(--line);border-radius:5px;padding:11px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="mono" style="font-size:10px;letter-spacing:.11em;color:var(--ink-3);flex-grow:1">01</span>
+            <button class="btn btn-s btn-i" type="button" aria-label="Remover signatário"><svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2.6 6h6.8" stroke="#5C5852" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+          </div>
+          <span class="inp" style="background:var(--surface)">Bruna Sales</span>
+          <span class="inp mono" style="background:var(--surface);font-size:11.5px">bruna.sales@vertax.com.br</span>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:8px;background:var(--surface-2);border:1px solid var(--line);border-radius:5px;padding:11px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="mono" style="font-size:10px;letter-spacing:.11em;color:var(--ink-3);flex-grow:1">02</span>
+            <button class="btn btn-s btn-i" type="button" aria-label="Remover signatário"><svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2.6 6h6.8" stroke="#5C5852" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+          </div>
+          <span class="inp" style="background:var(--surface)">Rafael Prado</span>
+          <span class="inp bad" style="background:var(--surface)">bruna.sales@vertax.com.br</span>
+          <small style="font:400 11px/1.35 'IBM Plex Sans',sans-serif;color:var(--bad-ink)">Este e-mail já está no documento. Cada signatário precisa de um endereço distinto.</small>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:9px;padding-top:14px;border-top:1px solid var(--line)">
+        <button class="btn" type="button" style="opacity:.55">Cancelar</button>
+        <button class="btn btn-p" type="button" style="flex-grow:1;height:36px">Criar e enviar para assinatura</button>
+      </div>
+      <p style="font-size:11px;line-height:1.55;color:var(--ink-3)">O documento é gravado antes do envio. Se a ZapSign recusar, ele aparece na lista como <span class="mono" style="color:var(--bad-ink)">failed</span>, com o motivo e um botão para reenviar.</p>
+    </div>
+  </aside>
+</div>
+</x-dc>
+</body>
+</html>

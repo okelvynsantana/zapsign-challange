@@ -1,0 +1,76 @@
+<div class="login">
+  <section class="login__brand">
+    <div class="login__intro">
+      <p class="eyebrow login__muted">ZapSign</p>
+      <h1 class="t-section login__title">Documentos &amp; Assinaturas</h1>
+      <p class="t-body login__lead">
+        Cadastre documentos, envie-os para assinatura e acompanhe cada entrega ao ZapSign
+        em um só lugar.
+      </p>
+    </div>
+
+    <div class="login__cycle">
+      <p class="eyebrow login__muted">Ciclo de entrega</p>
+      <p class="t-support login__lead">
+        Toda entrega começa em <span class="mono">pending_integration</span> e termina em
+        <span class="mono">submitted</span> ou <span class="mono">failed</span>.
+      </p>
+      <ul class="login__states">
+        <li class="login__state">
+          <span class="login__mark login__mark--pending">
+            <app-icon name="dashed-circle" [size]="12" />
+          </span>
+          <span class="t-value">pending_integration</span>
+          <span class="t-support login__gloss">entrega em curso</span>
+        </li>
+        <li class="login__state">
+          <span class="login__mark login__mark--ok"><app-icon name="check" [size]="12" /></span>
+          <span class="t-value">submitted</span>
+          <span class="t-support login__gloss">entregue ao provedor</span>
+        </li>
+        <li class="login__state">
+          <span class="login__mark login__mark--bad"><app-icon name="cross" [size]="12" /></span>
+          <span class="t-value">failed</span>
+          <span class="t-support login__gloss">não entregue; o documento fica guardado</span>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <div class="login__side">
+    <form class="card login__form" [formGroup]="form" (ngSubmit)="submit()">
+      <header class="login__form-head">
+        <h2 class="t-panel">Entrar</h2>
+        <p class="t-support">Use as credenciais da sua conta para continuar.</p>
+      </header>
+
+      <div class="field">
+        <label class="field__label" for="login-username">Usuário</label>
+        <input
+          id="login-username"
+          class="inp"
+          type="text"
+          formControlName="username"
+          autocomplete="username"
+        />
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="login-password">Senha</label>
+        <input
+          id="login-password"
+          class="inp"
+          type="password"
+          formControlName="password"
+          autocomplete="current-password"
+        />
+      </div>
+
+      <app-error-message [error]="error()" />
+
+      <button type="submit" class="btn btn--primary login__submit" [disabled]="form.invalid || pending()">
+        {{ pending() ? 'Entrando…' : 'Entrar' }}
+      </button>
+    </form>
+  </div>
+</div>

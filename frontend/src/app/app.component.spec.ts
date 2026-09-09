@@ -38,7 +38,7 @@ describe('AppComponent', () => {
     const links = [...fixture.nativeElement.querySelectorAll('nav a')].map(
       (a: Element) => a.textContent?.trim(),
     );
-    expect(links).toEqual(['Documents', 'Organization', 'Reports', 'Alerts']);
+    expect(links).toEqual(['Documentos', 'Organização', 'Relatórios', 'Alertas']);
   });
 
   it('signing out clears the session and returns to the login screen', () => {

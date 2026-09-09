@@ -1,34 +1,25 @@
-import { Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 
 import { ApiError } from '../models/api.model';
+import { IconComponent } from '../../ui/atoms/icon.component';
+import { ErrorMessageComponent } from '../../ui/molecules/error-message.component';
 import { AuthService } from './auth.service';
 
+/**
+ * The way in (US0).
+ *
+ * The rejection is kept as the whole `ApiError` rather than its `detail` string: the
+ * code is the only part a person can quote in a support conversation, and the banner
+ * already knows how to render both (data-model §7).
+ */
 @Component({
   selector: 'app-login',
-  imports: [ReactiveFormsModule],
-  template: `
-    <section class="panel">
-      <h1>Sign in</h1>
-      <form [formGroup]="form" (ngSubmit)="submit()">
-        <label>
-          Username
-          <input type="text" formControlName="username" autocomplete="username" />
-        </label>
-        <label>
-          Password
-          <input type="password" formControlName="password" autocomplete="current-password" />
-        </label>
-        @if (error(); as message) {
-          <p class="error" role="alert">{{ message }}</p>
-        }
-        <button type="submit" [disabled]="form.invalid || pending()">
-          {{ pending() ? 'Signing in…' : 'Sign in' }}
-        </button>
-      </form>
-    </section>
-  `,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [ReactiveFormsModule, ErrorMessageComponent, IconComponent],
+  templateUrl: './login.component.html',
+  styleUrl: './login.component.scss',
 })
 export class LoginComponent {
   private readonly auth = inject(AuthService);
@@ -40,7 +31,7 @@ export class LoginComponent {
   });
 
   readonly pending = signal(false);
-  readonly error = signal<string | null>(null);
+  readonly error = signal<ApiError | null>(null);
 
   submit(): void {
     if (this.form.invalid) {
@@ -57,7 +48,7 @@ export class LoginComponent {
       },
       error: (err: ApiError) => {
         this.pending.set(false);
-        this.error.set(err.detail);
+        this.error.set(err);
       },
     });
   }

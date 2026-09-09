@@ -1,15 +1,4 @@
-<header class="app-header">
-  <h1>Documents &amp; Signatures</h1>
-  @if (auth.isAuthenticated()) {
-    <nav>
-      <a routerLink="/documents">Documents</a>
-      <a routerLink="/companies">Organization</a>
-      <a routerLink="/reports">Reports</a>
-      <a routerLink="/alerts">Alerts</a>
-      <button type="button" (click)="logout()">Sign out</button>
-    </nav>
-  }
-</header>
+<app-header (signOut)="logout()" />
 
 <main>
   <router-outlet />

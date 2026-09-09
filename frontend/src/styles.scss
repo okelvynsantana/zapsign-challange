@@ -1,1 +1,11 @@
-/* You can add global styles to this file, and also import other style files */
+/* Global stylesheet — the only entry point declared in angular.json.
+ *
+ * Order matters: tokens define the custom properties every later rule consumes,
+ * the reset establishes the box model and the focus ring, typography declares
+ * the faces and the scale, and the component layer builds the shared atoms on
+ * top of all three (Constitution Principle VIII; contracts/design-tokens.md).
+ */
+@use 'styles/tokens';
+@use 'styles/reset';
+@use 'styles/typography';
+@use 'styles/components';

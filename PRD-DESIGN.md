@@ -5,7 +5,7 @@
 **Versão:** 1.1 — alinhada à constituição v1.1.0 (Princípios VIII–XI)
 **Data:** 08/09/2026
 **Status:** Pronto para implementação
-**Referência visual:** [canvas publicado](https://claude.ai/code/artifact/752f8469-848c-4255-957e-07b973f22f6d) · fontes em [design/](design/)
+**Referência visual:** [canvas publicado](https://claude.ai/code/artifact/752f8469-848c-4255-957e-07b973f22f6d)
 
 ---
 
@@ -105,8 +105,9 @@ O canvas tem 12 pranchas em três páginas:
 | Sistema visual | tokens claro/escuro, tipografia, os três vocabulários de status, componentes, grade |
 | Direções descartadas | Direção B (console lateral) e C (fila de trabalho), em baixa fidelidade |
 
-Os arquivos-fonte estão em `design/*.dc.html`. Onde o canvas e este PRD divergirem, **este
-PRD vence** — ele carrega os valores exatos.
+As pranchas vivem no canvas publicado acima; os fontes `.dc.html` não são versionados, já
+que a interface implementada é a referência corrente. Onde o canvas e este PRD divergirem,
+**este PRD vence** — ele carrega os valores exatos.
 
 ## 5. Fundamentos
 

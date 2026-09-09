@@ -214,6 +214,48 @@ has documents rather than orphaning them; `DocumentAnalysis` is insert-only.
 
 ---
 
+## Visual system
+
+The SPA is styled from a token layer rather than per-component values. Every colour, type step,
+spacing step, radius and control height resolves from a CSS custom property declared in
+`frontend/src/styles/_tokens.scss`; the full list is
+[`contracts/design-tokens.md`](specs/003-spa-design-system/contracts/design-tokens.md).
+
+**Two themes, no JavaScript.** Tokens have their base definition on `:root` and are *redefined*
+under `@media (prefers-color-scheme: dark)` (guarded as `:root:not([data-theme="light"])`) and
+again under `:root[data-theme="dark"]`. Nothing is stored and nothing is read at runtime, so there
+is no flash on first paint and no state to test. A token whose only definition lives inside a theme
+block is a defect — `frontend/src/styles/tokens.spec.ts` fails the build for it.
+
+**Three status vocabularies that never converge.** This is the rule the interface is built around:
+
+| Scale | Field | Form |
+|---|---|---|
+| Hand-off (ours) | `provider_status` | a bordered badge with an icon — the only scale drawn this way, because it is the only state we own and the only one with a retry |
+| Signature (theirs) | `status` | a dot plus a small-caps label, never a badge; the value set is open, so an unrecognised value renders verbatim rather than breaking |
+| Analysis | `latest_analysis` | icon plus text; a **risk** finding is ochre, a **failed** run is red, and they never share a colour or a mark |
+
+No status is ever communicated by colour alone. API-recorded values (`submitted`, `no_text`,
+`company_has_documents`) are displayed exactly as recorded, in the mono face — translating them
+would create a second truth against the logs and the API docs.
+
+**Composition.** Components follow Atomic Design with a one-way import rule: atoms know no domain
+model, molecules bind one domain value, organisms may inject services, pages own routing and data.
+Reusable pieces live in `frontend/src/app/ui/{atoms,molecules,organisms}/`; an organism used by one
+screen stays in that screen's folder. Behaviourless atoms are global SCSS classes rather than
+components, so the 4 kB per-component style budget is not spent on duplication.
+
+**Fonts are self-hosted.** IBM Plex Sans (variable weight axis) and IBM Plex Mono (static 400/500)
+ship from `@fontsource-variable/ibm-plex-sans` and `@fontsource/ibm-plex-mono`, emitted into the
+bundle at build time. Nothing is fetched from a font host: the stack has to run with no external
+network, and a Google Fonts link would break that promise. There is no variable build published for
+IBM Plex Mono, which is why the two families are packaged differently.
+
+**Interface language is Brazilian Portuguese.** The deliberate exception is the API-recorded values
+above.
+
+Full specification, plan and validation guide: [`specs/003-spa-design-system/`](specs/003-spa-design-system/).
+
 ## Trade-offs and known limitations
 
 **The AI analysis runs synchronously inside the request.** Creating a document therefore

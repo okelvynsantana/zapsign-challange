@@ -1,0 +1,39 @@
+<section class="grp card" [class.grp--risk]="tone() === 'risk'" [attr.aria-label]="title()">
+  <header class="grp__head">
+    <span class="grp__mark"><app-icon [name]="icon()" [size]="14" /></span>
+    <h2 class="t-panel">{{ title() }}</h2>
+    <span class="grp__count mono">{{ count() }}</span>
+  </header>
+
+  @if (hint()) {
+    <p class="grp__hint t-support">{{ hint() }}</p>
+  }
+
+  @if (alerts().length === 0) {
+    <p class="grp__none t-body">Nenhum.</p>
+  } @else {
+    <ul class="grp__list" [attr.data-testid]="listTestId()">
+      @for (alert of alerts(); track alert.document_id + alert.since + alert.detail) {
+        <li class="grp__item">
+          <div class="grp__lines">
+            <a
+              class="grp__name t-name"
+              routerLink="/documents"
+              [queryParams]="{ document: alert.document_id }"
+              >{{ alert.document_name }}</a
+            >
+            <!-- Recorded by the API, shown as recorded (FR-003, FR-020). -->
+            <p class="grp__detail t-body">{{ alert.detail }}</p>
+          </div>
+          <a
+            class="btn btn--sm grp__go"
+            routerLink="/documents"
+            [queryParams]="{ document: alert.document_id }"
+            [attr.aria-label]="'Abrir ' + alert.document_name"
+            >Abrir</a
+          >
+        </li>
+      }
+    </ul>
+  }
+</section>

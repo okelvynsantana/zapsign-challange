@@ -1,0 +1,42 @@
+.alerts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--page-pad-y) var(--page-pad-x);
+}
+
+.alerts__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.alerts__title {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.alerts__note {
+  max-width: 82ch;
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+
+.alerts__groups {
+  display: grid;
+  gap: var(--space-4);
+}
+
+/* Side by side once a document name still fits on one line in half the width;
+ * narrower than that the two groups stack rather than shrink. */
+@media (min-width: 900px) {
+  .alerts__groups {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.alerts__loading {
+  padding: var(--space-4);
+}

@@ -1,15 +1,33 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 
 import { AlertService } from '../core/api/alert.service';
 import { Alert } from '../core/models/alert.model';
 import { ApiError } from '../core/models/api.model';
-import { ErrorMessageComponent } from '../shared/error-message.component';
+import { EmptyStateComponent } from '../ui/atoms/empty-state.component';
+import { IconComponent } from '../ui/atoms/icon.component';
+import { ErrorMessageComponent } from '../ui/molecules/error-message.component';
+import { AlertGroupComponent } from './alert-group.component';
 
-/** Operations dashboard: stalled documents and risk findings (bonus US5). */
+/**
+ * Operations dashboard: stalled documents and risk findings (bonus US5).
+ *
+ * The page fetches and splits; each group renders itself. The split is kept
+ * here because the two lists are the page's subject — an empty one is still a
+ * group with a count, not a list to drop.
+ */
 @Component({
   selector: 'app-alerts',
-  imports: [ErrorMessageComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [ErrorMessageComponent, EmptyStateComponent, IconComponent, AlertGroupComponent],
   templateUrl: './alerts.component.html',
+  styleUrl: './alerts.component.scss',
 })
 export class AlertsComponent implements OnInit {
   private readonly alerts = inject(AlertService);

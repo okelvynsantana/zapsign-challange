@@ -1,6 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 
 import { Alert } from '../core/models/alert.model';
 import { AlertsComponent } from './alerts.component';
@@ -33,7 +34,7 @@ describe('AlertsComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [AlertsComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     }).compileComponents();
 
     fixture = TestBed.createComponent(AlertsComponent);
@@ -59,11 +60,11 @@ describe('AlertsComponent', () => {
     expect(fixture.componentInstance.error()).toBeNull();
   });
 
-  it('says "None." for a category with no alerts', () => {
+  it('says "Nenhum." for a category with no alerts', () => {
     flush([stalled]);
 
     expect(fixture.nativeElement.querySelector('[data-testid="alerts-risk"]')).toBeNull();
-    expect(fixture.nativeElement.textContent).toContain('None.');
+    expect(fixture.nativeElement.textContent).toContain('Nenhum.');
   });
 
   it('re-fetches on refresh', () => {
